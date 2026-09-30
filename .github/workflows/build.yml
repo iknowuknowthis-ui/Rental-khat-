@@ -53,9 +53,12 @@ jobs:
             echo "::error::Add repo secrets KEYSTORE_BASE64 and KEYSTORE_PASSWORD (Settings > Secrets and variables > Actions)"
             exit 1
           fi
-          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
-          keytool -list -keystore "$RUNNER_TEMP/release.keystore" -storepass "$KEYSTORE_PASSWORD" > /dev/null \
-            || { echo "::error::Keystore or password is wrong - re-paste the two secrets exactly"; exit 1; }
+          KEYSTORE_BASE64=$(printf '%s' "$KEYSTORE_BASE64" | tr -d ' \r\n\t')
+          KEYSTORE_PASSWORD=$(printf '%s' "$KEYSTORE_PASSWORD" | tr -d ' \r\n\t')
+          echo "Secret lengths: base64=${#KEYSTORE_BASE64} (expected 3588), password=${#KEYSTORE_PASSWORD} (expected 22)"
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore" || true
+          keytool -list -keystore "$RUNNER_TEMP/release.keystore" -storepass "$KEYSTORE_PASSWORD" > "$RUNNER_TEMP/kt.log" 2>&1 \
+            || { cat "$RUNNER_TEMP/kt.log"; echo "::error::Keystore or password is wrong - check the lengths printed above and re-paste the secrets"; exit 1; }
           K="$RUNNER_TEMP/release.keystore"
           P="$KEYSTORE_PASSWORD"
           printf '{"android":{"release":{"keystore":"%s","storePassword":"%s","alias":"rentalkhata","password":"%s","keystoreType":"pkcs12"},"debug":{"keystore":"%s","storePassword":"%s","alias":"rentalkhata","password":"%s","keystoreType":"pkcs12"}}}' \

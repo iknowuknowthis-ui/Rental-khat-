@@ -61,7 +61,7 @@ jobs:
             || { cat "$RUNNER_TEMP/kt.log"; echo "::error::Keystore or password is wrong - check the lengths printed above and re-paste the secrets"; exit 1; }
           K="$RUNNER_TEMP/release.keystore"
           P="$KEYSTORE_PASSWORD"
-          printf '{"android":{"release":{"keystore":"%s","storePassword":"%s","alias":"rentalkhata","password":"%s","keystoreType":"pkcs12"},"debug":{"keystore":"%s","storePassword":"%s","alias":"rentalkhata","password":"%s","keystoreType":"pkcs12"}}}' \
+          printf '{"android":{"release":{"keystore":"%s","storePassword":"%s","alias":"rentalkhata","password":"%s","keystoreType":"pkcs12","packageType":"apk"},"debug":{"keystore":"%s","storePassword":"%s","alias":"rentalkhata","password":"%s","keystoreType":"pkcs12"}}}' \
             "$K" "$P" "$P" "$K" "$P" "$P" > "$RUNNER_TEMP/build.json"
 
       - name: Assemble project from repo files
@@ -104,14 +104,15 @@ jobs:
       - name: Build signed APK
         run: |
           cd app
-          cordova build android --release --buildConfig="$RUNNER_TEMP/build.json" \
+          cordova build android --release --buildConfig="$RUNNER_TEMP/build.json" -- --packageType=apk \
             || { echo "Release build failed - retrying as signed debug build"; cordova build android --debug --buildConfig="$RUNNER_TEMP/build.json"; }
 
       - name: Collect APK
         run: |
           mkdir -p out
           APK=$(ls app/platforms/android/app/build/outputs/apk/release/*.apk 2>/dev/null | grep -v unsigned | head -1)
-          [ -n "$APK" ] || APK=$(ls app/platforms/android/app/build/outputs/apk/debug/*.apk | head -1)
+          [ -n "$APK" ] || APK=$(ls app/platforms/android/app/build/outputs/apk/debug/*.apk 2>/dev/null | head -1)
+          [ -n "$APK" ] || { echo "::error::No APK produced"; find app/platforms/android/app/build/outputs -type f; exit 1; }
           echo "Using $APK"
           cp "$APK" out/RentalKhata.apk
           "$ANDROID_HOME"/build-tools/34.0.0/apksigner verify --print-certs out/RentalKhata.apk | head -3

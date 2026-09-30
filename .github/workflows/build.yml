@@ -78,7 +78,8 @@ jobs:
           cp index.html app/www/index.html
 
           # App icon
-          command -v convert >/dev/null || sudo apt-get install -y imagemagick
+          sudo apt-get update -y
+          sudo apt-get install -y imagemagick
           mkdir -p app/res
           ICONS=""
           for p in ldpi:36 mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do

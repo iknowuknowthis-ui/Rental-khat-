@@ -1,0 +1,22 @@
+<?xml version='1.0' encoding='utf-8'?>
+<widget id="com.ankit.khata" version="1.0.0"
+        xmlns="http://www.w3.org/ns/widgets"
+        xmlns:cdv="http://cordova.apache.org/ns/1.0">
+    <name>Rental Khata</name>
+    <description>Ankit Construction - rental khata</description>
+    <author email="none@example.com" href="https://example.com">Ankit Construction</author>
+    <content src="index.html" />
+
+    <allow-intent href="http://*/*" />
+    <allow-intent href="https://*/*" />
+    <allow-intent href="tel:*" />
+    <allow-intent href="sms:*" />
+    <allow-intent href="mailto:*" />
+    <allow-intent href="whatsapp:*" />
+    <allow-intent href="upi:*" />
+
+    <preference name="Orientation" value="portrait" />
+    <preference name="DisallowOverscroll" value="true" />
+    <preference name="BackgroundColor" value="0xfff3ecd9" />
+    <preference name="android-minSdkVersion" value="24" />
+</widget>

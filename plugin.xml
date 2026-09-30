@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        id="cordova-plugin-smspayment" version="1.0.0">
+    <name>SmsPayment</name>
+
+    <js-module src="www/smspayment.js" name="SmsPayment">
+        <clobbers target="SmsPayment" />
+    </js-module>
+
+    <platform name="android">
+        <config-file target="res/xml/config.xml" parent="/*">
+            <feature name="SmsPayment">
+                <param name="android-package" value="com.ankit.khata.SmsPaymentPlugin" />
+            </feature>
+        </config-file>
+
+        <config-file target="AndroidManifest.xml" parent="/manifest">
+            <uses-permission android:name="android.permission.RECEIVE_SMS" />
+            <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+        </config-file>
+
+        <config-file target="AndroidManifest.xml" parent="/manifest/application">
+            <receiver android:name="com.ankit.khata.SmsReceiver"
+                      android:exported="true"
+                      android:permission="android.permission.BROADCAST_SMS">
+                <intent-filter android:priority="999">
+                    <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+                </intent-filter>
+            </receiver>
+            <provider android:name="androidx.core.content.FileProvider"
+                      android:authorities="${applicationId}.smspay.provider"
+                      android:exported="false"
+                      android:grantUriPermissions="true">
+                <meta-data android:name="android.support.FILE_PROVIDER_PATHS"
+                           android:resource="@xml/smspay_paths" />
+            </provider>
+        </config-file>
+
+        <resource-file src="res/xml/smspay_paths.xml" target="res/xml/smspay_paths.xml" />
+        <source-file src="src/android/SmsPaymentPlugin.java" target-dir="src/com/ankit/khata" />
+        <source-file src="src/android/SmsReceiver.java" target-dir="src/com/ankit/khata" />
+    </platform>
+</plugin>

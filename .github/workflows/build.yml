@@ -89,6 +89,13 @@ jobs:
           done
           sed -i "s#</widget>#$ICONS</widget>#" app/config.xml
 
+          # Opening (splash) screen: round Ankit Construction logo on the app's cream background
+          convert icon.png -resize 640x640 -alpha set "$RUNNER_TEMP/a.png"
+          convert -size 640x640 xc:none -fill white -draw "circle 320,320 320,8" "$RUNNER_TEMP/m.png"
+          convert "$RUNNER_TEMP/a.png" "$RUNNER_TEMP/m.png" -compose DstIn -composite "$RUNNER_TEMP/b.png"
+          convert "$RUNNER_TEMP/b.png" -background none -gravity center -extent 960x960 PNG32:app/res/splash.png
+          sed -i 's|</widget>|<preference name="AndroidWindowSplashScreenAnimatedIcon" value="res/splash.png" /><preference name="AndroidWindowSplashScreenBackground" value="#F3ECD9" /></widget>|' app/config.xml
+
           # Version stamp + repo name (used by the in-app updater)
           N=${{ github.run_number }}
           REPO=${{ github.repository }}

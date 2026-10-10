@@ -3,7 +3,10 @@ package com.ankit.khata;
 import android.Manifest;
 import android.content.ClipData;
 import android.content.Context;
+import android.content.ComponentName;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
 import android.util.Base64;
@@ -15,6 +18,7 @@ import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.PluginResult;
 import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -36,6 +40,9 @@ public class SmsPaymentPlugin extends CordovaPlugin {
             if (!cordova.hasPermission(Manifest.permission.RECEIVE_SMS)) {
                 need.add(Manifest.permission.RECEIVE_SMS);
             }
+            if (!cordova.hasPermission(Manifest.permission.READ_SMS)) {
+                need.add(Manifest.permission.READ_SMS);
+            }
             if (Build.VERSION.SDK_INT >= 33
                     && !cordova.hasPermission("android.permission.POST_NOTIFICATIONS")) {
                 need.add("android.permission.POST_NOTIFICATIONS");
@@ -44,6 +51,96 @@ public class SmsPaymentPlugin extends CordovaPlugin {
                 cordova.requestPermissions(this, REQ_PERMS, need.toArray(new String[0]));
             }
             callbackContext.success("requested");
+            return true;
+        }
+
+        if ("syncCustomers".equals(action)) {
+            Context ctx = cordova.getActivity().getApplicationContext();
+            ctx.getSharedPreferences(SmsReceiver.PREFS, Context.MODE_PRIVATE)
+                    .edit().putString("customers", args.getString(0)).apply();
+            callbackContext.success();
+            return true;
+        }
+
+        if ("diagnose".equals(action)) {
+            Context ctx = cordova.getActivity().getApplicationContext();
+            SharedPreferences sp = ctx.getSharedPreferences(SmsReceiver.PREFS, Context.MODE_PRIVATE);
+            JSONObject o = new JSONObject();
+            o.put("sdk", Build.VERSION.SDK_INT);
+            o.put("brand", Build.MANUFACTURER);
+            o.put("receive", cordova.hasPermission(Manifest.permission.RECEIVE_SMS));
+            o.put("read", cordova.hasPermission(Manifest.permission.READ_SMS));
+            o.put("notif", Build.VERSION.SDK_INT < 33
+                    || cordova.hasPermission("android.permission.POST_NOTIFICATIONS"));
+            o.put("lastAny", sp.getLong("last_any", 0));
+            o.put("lastCredit", sp.getLong("last_credit", 0));
+            o.put("pending", new JSONArray(sp.getString(SmsReceiver.KEY_PENDING, "[]")).length());
+            callbackContext.success(o);
+            return true;
+        }
+
+        if ("scanInbox".equals(action)) {
+            final long days = args.optLong(0, 2);
+            cordova.getThreadPool().execute(new Runnable() {
+                @Override
+                public void run() {
+                    Cursor c = null;
+                    try {
+                        if (!cordova.hasPermission(Manifest.permission.READ_SMS)) {
+                            callbackContext.error("no_permission");
+                            return;
+                        }
+                        Context ctx = cordova.getActivity().getApplicationContext();
+                        long since = System.currentTimeMillis() - days * 24L * 3600L * 1000L;
+                        c = ctx.getContentResolver().query(
+                                Uri.parse("content://sms/inbox"),
+                                new String[]{"_id", "address", "body", "date"},
+                                "date>?", new String[]{String.valueOf(since)},
+                                "date DESC LIMIT 60");
+                        JSONArray out = new JSONArray();
+                        if (c != null) {
+                            while (c.moveToNext()) {
+                                String body = c.getString(2);
+                                if (!SmsReceiver.isPaymentCredit(body)) continue;
+                                JSONObject o = new JSONObject();
+                                o.put("id", "ib-" + c.getLong(0));
+                                o.put("sender", c.getString(1) == null ? "" : c.getString(1));
+                                o.put("body", body);
+                                o.put("ts", c.getLong(3));
+                                out.put(o);
+                            }
+                        }
+                        callbackContext.success(out);
+                    } catch (Exception e) {
+                        callbackContext.error(String.valueOf(e.getMessage()));
+                    } finally {
+                        if (c != null) c.close();
+                    }
+                }
+            });
+            return true;
+        }
+
+        if ("openAutostart".equals(action)) {
+            Context ctx = cordova.getActivity();
+            try {
+                Intent i = new Intent();
+                i.setComponent(new ComponentName("com.miui.securitycenter",
+                        "com.miui.permcenter.autostart.AutoStartManagementActivity"));
+                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                ctx.startActivity(i);
+            } catch (Exception e1) {
+                try {
+                    Intent i = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            Uri.parse("package:" + ctx.getPackageName()));
+                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    ctx.startActivity(i);
+                } catch (Exception e2) {
+                    callbackContext.error(String.valueOf(e2.getMessage()));
+                    return true;
+                }
+            }
+            callbackContext.success();
             return true;
         }
 

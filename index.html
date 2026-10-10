@@ -1566,6 +1566,11 @@ function makeId(t) {
   return t + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
 function saveCustomers(t) {
+  setTimeout(() => {
+    try {
+      syncCustomersToNative();
+    } catch {}
+  }, 50);
   try {
     return (localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(t)), !0);
   } catch (t) {
@@ -5455,35 +5460,177 @@ function parseBankSms(body) {
   return { amount, ref };
 }
 
+function smsBodyKey(body) {
+  let h = 0;
+  const t = String(body || "");
+  for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0;
+  return "b:" + h;
+}
+function smsSeenKey(p, m) {
+  return p.ref || smsBodyKey(m.body);
+}
+const SMS_ALIAS_KEY = "khata_sms_alias";
+const SMS_AUTO_KEY = "khata_sms_auto_log";
+function phone10(x) {
+  return String(x || "").replace(/\D/g, "").slice(-10);
+}
+function smsVpa(body) {
+  const m = String(body || "").match(/([\w.\-]{3,}@[a-z]{2,})/i);
+  return m ? m[1].toLowerCase() : "";
+}
+function smsLearnAlias(body, cid) {
+  const v = smsVpa(body);
+  if (!v) return;
+  try {
+    const a = JSON.parse(localStorage.getItem(SMS_ALIAS_KEY) || "{}");
+    a[v] = cid;
+    localStorage.setItem(SMS_ALIAS_KEY, JSON.stringify(a));
+  } catch {}
+}
+/* 1) customer's saved phone number found in the SMS (must match exactly one customer)
+   2) otherwise the payer's UPI id that you assigned to a customer before */
+function smsMatchCustomer(body) {
+  const customers = loadCustomers();
+  const re = /(?<!\d)(?:91)?([6-9]\d{9})(?!\d)/g;
+  const hit = new Set();
+  let m;
+  while ((m = re.exec(String(body || "")))) {
+    customers.forEach((c) => {
+      if (phone10(c.phone) === m[1]) hit.add(c.id);
+    });
+  }
+  if (hit.size === 1) return [...hit][0];
+  if (hit.size > 1) return null;
+  const v = smsVpa(body);
+  if (v) {
+    try {
+      const a = JSON.parse(localStorage.getItem(SMS_ALIAS_KEY) || "{}");
+      if (a[v] && customers.some((c) => String(c.id) === String(a[v]))) return a[v];
+    } catch {}
+  }
+  return null;
+}
+function smsAutoLog() {
+  try {
+    return JSON.parse(localStorage.getItem(SMS_AUTO_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+function smsUndoAuto(sid) {
+  const log = smsAutoLog();
+  const e = log.find((x) => x.sid === sid);
+  if (!e || e.undone) return;
+  const txns = loadTxns(e.cid);
+  const stamp = nowISO();
+  txns.forEach((t) => {
+    if ((t.payments || []).some((p) => p.sid === sid)) {
+      t.payments = t.payments.filter((p) => p.sid !== sid);
+      t.history = [...(t.history || []), { ts: stamp, note: `↩ SMS payment ₹${e.amount.toLocaleString("en-IN")} undone` }];
+    }
+  });
+  saveTxns(e.cid, txns);
+  if (String(state.activeCustomerId) === String(e.cid)) state.txns = txns;
+  e.undone = true;
+  localStorage.setItem(SMS_AUTO_KEY, JSON.stringify(log));
+  /* put the message back so you can assign it by hand */
+  smsSave(SMS_SEEN_KEY, smsLoad(SMS_SEEN_KEY).filter((k) => k !== e.item.key));
+  const inbox = smsLoad(SMS_INBOX_KEY);
+  inbox.push(e.item);
+  smsSave(SMS_INBOX_KEY, inbox);
+  render();
+  showToast("वापस लिया — अब ग्राहक खुद चुनें");
+  showNextDetectedPayment();
+}
+function smsShowAutoBar(entry) {
+  const bar = document.createElement("div");
+  bar.style.cssText =
+    "position:fixed;left:10px;right:10px;bottom:" + (60 + document.querySelectorAll(".rk-autobar").length * 58) + "px;z-index:99998;background:#2f6b4f;color:#fbf7ec;" +
+    "border-radius:12px;padding:10px 12px;font:13px/1.35 system-ui,sans-serif;display:flex;align-items:center;gap:10px;box-shadow:0 6px 20px rgba(0,0,0,.3)";
+  bar.className = "rk-autobar";
+  bar.innerHTML =
+    '<div style="flex:1">✓ ₹' + entry.amount.toLocaleString("en-IN") + " → <b>" + esc(entry.name) + '</b><div style="font-size:11px;opacity:.85">SMS से अपने आप सेव हुआ</div></div>' +
+    '<button style="background:#fbf7ec;color:#2f6b4f;border:0;border-radius:8px;padding:7px 12px;font-weight:700">Undo</button>';
+  bar.querySelector("button").onclick = () => {
+    bar.remove();
+    smsUndoAuto(entry.sid);
+  };
+  document.body.appendChild(bar);
+  setTimeout(() => bar.remove(), 15000);
+}
+function smsIngest(list) {
+  const inbox = smsLoad(SMS_INBOX_KEY);
+  const seen = smsLoad(SMS_SEEN_KEY);
+  let added = 0;
+  const autos = [];
+  (list || []).forEach((m) => {
+    const p = parseBankSms(m.body);
+    if (!p) return;
+    const key = smsSeenKey(p, m);
+    if (seen.includes(key) || inbox.some((x) => x.key === key || x.id === m.id)) return;
+    const item = { id: m.id, key, ts: m.ts, body: m.body, amount: p.amount, ref: p.ref };
+    const cid = smsMatchCustomer(m.body);
+    if (cid) {
+      const sid = "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      if (applyDetectedPayment(cid, p.amount, "UPI", p.ref, sid)) {
+        const c = loadCustomers().find((x) => String(x.id) === String(cid));
+        seen.push(key);
+        autos.push({ sid, cid, name: c ? c.name : "", amount: p.amount, ts: Date.now(), item, undone: false });
+        return;
+      }
+    }
+    inbox.push(item);
+    added++;
+  });
+  smsSave(SMS_INBOX_KEY, inbox);
+  smsSave(SMS_SEEN_KEY, seen);
+  if (autos.length) {
+    try {
+      localStorage.setItem(SMS_AUTO_KEY, JSON.stringify([...autos, ...smsAutoLog()].slice(0, 20)));
+    } catch {}
+    autos.forEach(smsShowAutoBar);
+    try {
+      render();
+    } catch {}
+  }
+  return added + autos.length;
+}
+function syncCustomersToNative() {
+  if (!(window.SmsPayment && window.SmsPayment.syncCustomers)) return;
+  const arr = loadCustomers()
+    .filter((c) => phone10(c.phone).length === 10)
+    .map((c) => ({ n: c.name, p: phone10(c.phone) }));
+  window.SmsPayment.syncCustomers(JSON.stringify(arr), () => {}, () => {});
+}
 function collectPendingSms() {
   if (!window.SmsPayment) return;
   window.SmsPayment.getPending(
     (list) => {
-      const inbox = smsLoad(SMS_INBOX_KEY);
-      const seen = smsLoad(SMS_SEEN_KEY);
-      (list || []).forEach((m) => {
-        if (inbox.some((x) => x.id === m.id)) return;
-        const p = parseBankSms(m.body);
-        if (!p) return;
-        if (p.ref && (seen.includes(p.ref) || inbox.some((x) => x.ref === p.ref))) return;
-        inbox.push({ id: m.id, ts: m.ts, body: m.body, amount: p.amount, ref: p.ref });
-      });
-      smsSave(SMS_INBOX_KEY, inbox);
+      smsIngest(list);
       showNextDetectedPayment();
     },
     () => {},
   );
+  /* backup: also read the last 2 days of the SMS inbox (needs SMS read permission) */
+  if (window.SmsPayment.scanInbox)
+    window.SmsPayment.scanInbox(
+      2,
+      (list) => {
+        if (smsIngest(list)) showNextDetectedPayment();
+      },
+      () => {},
+    );
 }
 
 // Applies money to the customer's oldest unpaid entries first; leftover becomes advance.
-function applyDetectedPayment(customerId, amount, method, ref) {
+function applyDetectedPayment(customerId, amount, method, ref, sid) {
   const txns = loadTxns(customerId);
   if (!txns.length) {
     showToast("इस ग्राहक की कोई एंट्री नहीं है");
     return false;
   }
   const stamp = nowISO();
-  const mk = (amt) => ({ amount: amt, date: stamp, verified: true, auto: true, method, ...(ref ? { ref } : {}) });
+  const mk = (amt) => ({ amount: amt, date: stamp, verified: true, auto: true, method, ...(ref ? { ref } : {}), ...(sid ? { sid } : {}) });
   const r2 = (x) => Math.round(x * 100) / 100;
   let left = amount;
   txns
@@ -5550,14 +5697,16 @@ function showNextDetectedPayment() {
   const dropItem = () => smsSave(SMS_INBOX_KEY, smsLoad(SMS_INBOX_KEY).filter((x) => x.id !== item.id));
   el.querySelector("#sms-later").onclick = close;
   el.querySelector("#sms-discard").onclick = () => {
+    smsSave(SMS_SEEN_KEY, [...smsLoad(SMS_SEEN_KEY), item.key || item.ref || smsBodyKey(item.body)]);
     dropItem();
     close();
     showNextDetectedPayment();
   };
   el.querySelector("#sms-save").onclick = () => {
     if (!applyDetectedPayment(sel.value, item.amount, getMethod(), item.ref)) return;
+    smsLearnAlias(item.body, sel.value);
     dropItem();
-    if (item.ref) smsSave(SMS_SEEN_KEY, [...smsLoad(SMS_SEEN_KEY), item.ref]);
+    smsSave(SMS_SEEN_KEY, [...smsLoad(SMS_SEEN_KEY), item.key || item.ref || smsBodyKey(item.body)]);
     const who = rows.find((r) => String(r.c.id) === String(sel.value));
     showToast(`✓ ₹${item.amount.toLocaleString("en-IN")} सेव हुआ${who ? " — " + who.c.name : ""}`);
     close();
@@ -5566,12 +5715,90 @@ function showNextDetectedPayment() {
   };
 }
 
+function showSmsCheck() {
+  const SP = window.SmsPayment;
+  if (!SP || !SP.diagnose) {
+    showToast("यह जाँच सिर्फ इंस्टॉल किए ऐप में चलती है");
+    return;
+  }
+  SP.diagnose((d) => {
+    const ok = (v) => (v ? "✅" : "❌");
+    const ago = (t) => {
+      if (!t) return "अभी तक कोई नहीं";
+      const m = Math.round((Date.now() - t) / 60000);
+      return m < 60 ? m + " मिनट पहले" : m < 1440 ? Math.round(m / 60) + " घंटे पहले" : Math.round(m / 1440) + " दिन पहले";
+    };
+    const xiaomi = /xiaomi|redmi|poco/i.test(d.brand || "");
+    const btn = "width:100%;padding:12px;border:0;border-radius:10px;font-weight:700;font-size:14px;margin-top:8px;";
+    const el = khataSheet(
+      '<div style="font-weight:700;font-size:18px;margin-bottom:8px">📩 SMS जाँच</div>' +
+        '<div style="font-size:14px;line-height:1.9">' +
+        ok(d.receive) + " SMS मिलने की permission<br>" +
+        ok(d.read) + " SMS पढ़ने की permission (बैकअप)<br>" +
+        ok(d.notif) + " Notification permission<br>" +
+        "🕒 आखिरी SMS ऐप को मिला: <b>" + ago(d.lastAny) + "</b><br>" +
+        "💰 आखिरी पेमेंट SMS: <b>" + ago(d.lastCredit) + "</b><br>" +
+        "📥 सेव होने बाकी: <b>" + d.pending + "</b></div>" +
+        (smsAutoLog().filter((x) => !x.undone).slice(0, 3).length
+          ? '<div style="font-size:12px;margin-top:8px"><b>अपने आप सेव हुए (Undo कर सकते हैं):</b>' +
+            smsAutoLog().filter((x) => !x.undone).slice(0, 3).map((x) =>
+              '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px"><span>₹' + x.amount.toLocaleString("en-IN") + " → " + esc(x.name) + '</span><button data-undo="' + x.sid + '" style="border:1px solid #b23a3a;color:#b23a3a;background:transparent;border-radius:8px;padding:3px 10px;font-size:12px">Undo</button></div>').join("") + "</div>"
+          : "") +
+        '<div style="font-size:12px;opacity:.8;margin-top:8px;line-height:1.5">' +
+        (!d.receive
+          ? "❌ पहले permission दें: नीचे बटन दबाएँ। न खुले तो App info → Permissions → SMS → Allow।"
+          : d.lastAny
+            ? "SMS ऐप तक पहुँच रहे हैं ✓"
+            : "Permission है पर ऐप को कोई SMS नहीं मिला" + (xiaomi ? " — नीचे Autostart चालू करें और Battery 'No restrictions' रखें।" : " — बैटरी सेटिंग में ऐप को 'No restrictions' रखें।")) +
+        "</div>" +
+        '<button id="sc-perm" style="' + btn + 'background:#2f6b4f;color:#fbf7ec">Permission माँगें</button>' +
+        '<button id="sc-scan" style="' + btn + 'background:#c2703d;color:#fff">इनबॉक्स अभी स्कैन करें</button>' +
+        '<button id="sc-auto" style="' + btn + 'background:#25344f;color:#f3ecd9">Autostart / ऐप सेटिंग खोलें</button>' +
+        '<button id="sc-close" style="' + btn + 'background:transparent;color:#25344f;border:1px solid rgba(37,52,79,.3)">बंद करें</button>',
+    );
+    el.querySelector("#sc-close").onclick = () => el.remove();
+    el.querySelectorAll("[data-undo]").forEach((b) => (b.onclick = () => { el.remove(); smsUndoAuto(b.getAttribute("data-undo")); }));
+    el.querySelector("#sc-perm").onclick = () => {
+      SP.requestPermission(() => showToast("Permission माँगी गई — फिर से SMS जाँच खोलें"), () => {});
+      el.remove();
+    };
+    el.querySelector("#sc-auto").onclick = () => SP.openAutostart(() => {}, () => showToast("सेटिंग नहीं खुली"));
+    el.querySelector("#sc-scan").onclick = () => {
+      SP.scanInbox(
+        7,
+        (list) => {
+          const n = smsIngest(list);
+          el.remove();
+          showToast(n ? n + " नया पेमेंट SMS मिला" : "पिछले 7 दिन में कोई नया पेमेंट SMS नहीं मिला");
+          showNextDetectedPayment();
+        },
+        (e) => showToast(String(e) === "no_permission" ? "पहले SMS पढ़ने की permission दें" : "स्कैन नहीं हो पाया"),
+      );
+    };
+  }, () => showToast("जाँच नहीं हो पाई"));
+}
+function addSmsCheckButton() {
+  if (document.getElementById("rk-sms-check")) return;
+  const b = document.createElement("div");
+  b.id = "rk-sms-check";
+  b.textContent = "📩 SMS जाँच";
+  b.style.cssText =
+    "position:fixed;right:6px;bottom:3px;z-index:9000;font:11px system-ui,sans-serif;color:#25344f;" +
+    "opacity:.7;background:#f3ecd9cc;padding:3px 8px;border-radius:8px";
+  b.onclick = showSmsCheck;
+  document.body.appendChild(b);
+}
+
 document.addEventListener("deviceready", () => {
   if (!window.SmsPayment) return;
+  addSmsCheckButton();
+  syncCustomersToNative();
   window.SmsPayment.requestPermission(() => {}, () => {});
   window.SmsPayment.listen(() => collectPendingSms(), () => {});
   collectPendingSms();
+  document.addEventListener("pause", syncCustomersToNative);
   document.addEventListener("resume", () => {
+    syncCustomersToNative();
     if (!smsPermWarned)
       window.SmsPayment.hasPermission(
         (s) => {
@@ -5596,6 +5823,15 @@ document.addEventListener("deviceready", () => {
     var m = /(\d+)\s*$/.exec(String(tag || ""));
     return m ? parseInt(m[1], 10) : 0;
   }
+  function toast(msg) {
+    var t = document.createElement("div");
+    t.style.cssText =
+      "position:fixed;left:16px;right:16px;bottom:70px;z-index:100000;background:#25344fee;color:#f3ecd9;" +
+      "border-radius:12px;padding:12px 14px;font:14px/1.4 system-ui,sans-serif;text-align:center";
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(function () { t.remove(); }, 4500);
+  }
   function showUpdateBanner(build, url) {
     if (document.getElementById("app-update-banner")) return;
     var b = document.createElement("div");
@@ -5619,28 +5855,72 @@ document.addEventListener("deviceready", () => {
       window.location.href = url; /* opens browser download; then tap the APK to install */
     };
   }
-  function checkForUpdate() {
+  /* manual = true when the user taps the small "Build N" label: always shows a result */
+  function checkForUpdate(manual) {
     var cur = Number(window.APP_BUILD) || 0;
-    if (!cur || !REPO || !window.cordova) return; /* only inside the installed app */
-    var ctl = typeof AbortController !== "undefined" ? new AbortController() : null;
-    var timer = ctl ? setTimeout(function () { ctl.abort(); }, 8000) : null;
-    fetch("https://api.github.com/repos/" + REPO + "/releases/latest", ctl ? { signal: ctl.signal } : {})
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (d) {
+    if (!cur || !REPO || !window.cordova) {
+      if (manual) toast("यह अपडेट सिर्फ इंस्टॉल किए गए ऐप में चलता है");
+      return;
+    }
+    var lastErr = "";
+    function getJson(url) {
+      var ctl = typeof AbortController !== "undefined" ? new AbortController() : null;
+      var timer = ctl ? setTimeout(function () { ctl.abort(); }, 10000) : null;
+      return fetch(url, ctl ? { signal: ctl.signal, cache: "no-store" } : { cache: "no-store" }).then(function (r) {
         if (timer) clearTimeout(timer);
-        if (!d) return;
-        var latest = buildFromTag(d.tag_name);
-        var asset = (d.assets || []).filter(function (a) { return /\.apk$/i.test(a.name); })[0];
-        if (!asset || latest <= cur) return;
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      }, function (e) { if (timer) clearTimeout(timer); throw e; });
+    }
+    /* 1st choice: small version.json on the "updates" branch (no API rate limit).
+       2nd choice: GitHub releases API. */
+    function getLatest() {
+      return getJson("https://raw.githubusercontent.com/" + REPO + "/updates/version.json?t=" + Date.now())
+        .then(function (d) {
+          var n = Number(d.build) || 0;
+          if (!n || !d.apk) throw new Error("bad version.json");
+          return { build: n, url: d.apk };
+        })
+        .catch(function (e1) {
+          lastErr = e1 && e1.message ? e1.message : "network";
+          return getJson("https://api.github.com/repos/" + REPO + "/releases/latest").then(function (d) {
+            var asset = (d.assets || []).filter(function (a) { return /\.apk$/i.test(a.name); })[0];
+            if (!asset) throw new Error("no apk in release");
+            return { build: buildFromTag(d.tag_name), url: asset.browser_download_url };
+          });
+        });
+    }
+    if (manual) toast("अपडेट जाँच रहे हैं…");
+    getLatest()
+      .then(function (L) {
+        if (L.build <= cur) {
+          if (manual) toast("आप नवीनतम Build " + cur + " पर हैं ✓");
+          return;
+        }
         var skipped = 0;
         try { skipped = Number(localStorage.getItem("rk_skip_build")) || 0; } catch (e) {}
-        if (skipped === latest) return;
-        showUpdateBanner(latest, asset.browser_download_url);
+        if (skipped === L.build && !manual) return;
+        showUpdateBanner(L.build, L.url);
       })
-      .catch(function () {});
+      .catch(function (err) {
+        if (manual) toast("जाँच नहीं हो पाई (" + (lastErr ? lastErr + " / " : "") + (err && err.message ? err.message : "network") + "). इंटरनेट देखें");
+      });
+  }
+  function addBuildLabel() {
+    var cur = Number(window.APP_BUILD) || 0;
+    if (!cur || !window.cordova || document.getElementById("rk-build-label")) return;
+    var l = document.createElement("div");
+    l.id = "rk-build-label";
+    l.textContent = "Build " + cur + " · अपडेट जाँचें";
+    l.style.cssText =
+      "position:fixed;left:6px;bottom:3px;z-index:9000;font:10px system-ui,sans-serif;color:#25344f;" +
+      "opacity:.55;background:#f3ecd9cc;padding:2px 6px;border-radius:8px";
+    l.onclick = function () { checkForUpdate(true); };
+    document.body.appendChild(l);
   }
   document.addEventListener("deviceready", function () {
-    setTimeout(checkForUpdate, 2500);
+    addBuildLabel();
+    setTimeout(function () { checkForUpdate(false); }, 2500);
   });
 })();
 </script>

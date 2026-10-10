@@ -51,7 +51,9 @@ public class SmsReceiver extends BroadcastReceiver {
                 if (p != null && p.getMessageBody() != null) sb.append(p.getMessageBody());
             }
             String body = sb.toString();
+            mark(context, "last_any");
             if (!isPaymentCredit(body)) return;
+            mark(context, "last_credit");
 
             String sender = parts[0].getOriginatingAddress();
             long ts = System.currentTimeMillis();
@@ -59,9 +61,18 @@ public class SmsReceiver extends BroadcastReceiver {
 
             store(context, id, sender, body, ts);
             SmsPaymentPlugin.notifyForeground();
-            showNotification(context, body);
+            showNotification(context, body, findPayerName(context, body));
         } catch (Exception e) {
             // never crash the receiver
+        }
+    }
+
+    static void mark(Context ctx, String key) {
+        try {
+            ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                    .edit().putLong(key, System.currentTimeMillis()).apply();
+        } catch (Exception e) {
+            // ignore
         }
     }
 
@@ -100,7 +111,33 @@ public class SmsReceiver extends BroadcastReceiver {
         return s;
     }
 
-    private void showNotification(Context ctx, String body) {
+    private static final Pattern PHONE = Pattern.compile("(?<!\\d)(?:91)?([6-9]\\d{9})(?!\\d)");
+
+    /** Returns the customer's name when exactly one saved customer's phone is inside the SMS, else "". */
+    static String findPayerName(Context ctx, String body) {
+        try {
+            SharedPreferences sp = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+            JSONArray custs = new JSONArray(sp.getString("customers", "[]"));
+            java.util.regex.Matcher m = PHONE.matcher(body);
+            String found = "";
+            int hits = 0;
+            while (m.find()) {
+                String num = m.group(1);
+                for (int i = 0; i < custs.length(); i++) {
+                    JSONObject c = custs.getJSONObject(i);
+                    if (num.equals(c.optString("p"))) {
+                        if (!c.optString("n").equals(found)) hits++;
+                        found = c.optString("n");
+                    }
+                }
+            }
+            return hits == 1 ? found : "";
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private void showNotification(Context ctx, String body, String payer) {
         NotificationManager nm =
                 (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm == null) return;
@@ -120,7 +157,9 @@ public class SmsReceiver extends BroadcastReceiver {
                 ? new Notification.Builder(ctx, CHANNEL_ID)
                 : new Notification.Builder(ctx);
         b.setSmallIcon(android.R.drawable.stat_notify_chat)
-                .setContentTitle("Payment received - tap to add in Khata")
+                .setContentTitle(payer == null || payer.length() == 0
+                        ? "Payment received - tap to add in Khata"
+                        : "Payment from " + payer + " - opens Khata")
                 .setContentText(shortBody)
                 .setStyle(new Notification.BigTextStyle().bigText(body))
                 .setContentIntent(pi)

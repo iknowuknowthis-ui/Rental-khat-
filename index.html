@@ -4094,7 +4094,7 @@ function bindOpenCustomerButtons() {
 }
 function renderList() {
   const t = state.search.trim() ? 0 : computeBookedList().length;
-  return `\n  <div class="px-4">\n    ${t > 0 ? `\n    <button data-goto-booked="1" class="w-full flex items-center justify-between gap-2 border border-[#2a5a8c]/30 bg-[#2a5a8c]/10 rounded-lg px-3 py-2.5 mb-3 ml-2 text-left">\n      <span class="flex items-center gap-2 text-sm text-[#25344f] font-medium">${iconSpan("calendar", 15)} ${t} upcoming booking${1 !== t ? "s" : ""} — material not yet given</span>\n      <span class="text-[#2a5a8c] text-xs font-semibold flex-shrink-0">View →</span>\n    </button>` : ""}\n    <div class="flex items-center gap-2 bg-[#fbf7ec] rounded-lg px-3 py-2.5 mb-4 border border-[#25344f]/15 ml-2">\n      <span class="text-[#8b7355]">${iconSpan("search", 16)}</span>\n      <input id="search-input" value="${esc(state.search)}" placeholder="Find by name or item (e.g. bamboo)..." class="bg-transparent flex-1 outline-none text-sm text-[#25344f]">\n    </div>\n    <div id="customer-list-body">${renderCustomerListBody()}</div>\n    <button id="btn-add-customer" class="fixed bottom-20 right-5 w-14 h-14 rounded-full bg-[#b23a3a] text-[#fbf7ec] flex items-center justify-center shadow-lg text-2xl z-50">+</button>\n  </div>`;
+  return `\n  <div class="px-4">\n    ${t > 0 ? `\n    <button data-goto-booked="1" class="w-full flex items-center justify-between gap-2 border border-[#2a5a8c]/30 bg-[#2a5a8c]/10 rounded-lg px-3 py-2.5 mb-3 ml-2 text-left">\n      <span class="flex items-center gap-2 text-sm text-[#25344f] font-medium">${iconSpan("calendar", 15)} ${t} upcoming booking${1 !== t ? "s" : ""} — material not yet given</span>\n      <span class="text-[#2a5a8c] text-xs font-semibold flex-shrink-0">View →</span>\n    </button>` : ""}\n    <div class="flex items-center gap-2 bg-[#fbf7ec] rounded-lg px-3 py-2.5 mb-4 border border-[#25344f]/15 ml-2">\n      <span class="text-[#8b7355]">${iconSpan("search", 16)}</span>\n      <input id="search-input" value="${esc(state.search)}" placeholder="Find by name or item (e.g. bamboo)..." class="bg-transparent flex-1 outline-none text-sm text-[#25344f]">\n    </div>\n    ${window.cordova && window.APP_BUILD ? `<div class="flex gap-2 mb-4 ml-2"><button id="btn-smscheck" class="flex-1 text-xs px-3 py-2 rounded-full font-semibold" style="background:#2f6b4f;color:#fbf7ec">📩 SMS जाँच</button><button id="btn-updcheck" class="flex-1 text-xs px-3 py-2 rounded-full font-semibold" style="background:#25344f;color:#f3ecd9">⟳ Build ${window.APP_BUILD} · अपडेट जाँचें</button></div>` : ""}\n    <div id="customer-list-body">${renderCustomerListBody()}</div>\n    <button id="btn-add-customer" class="fixed bottom-20 right-5 w-14 h-14 rounded-full bg-[#b23a3a] text-[#fbf7ec] flex items-center justify-center shadow-lg text-2xl z-50">+</button>\n  </div>`;
 }
 function renderAddCustomer() {
   return `\n  <div class="px-6 py-2 ml-2">\n    <label class="text-xs text-[#8b7355] mb-1 block">Name</label>\n    <input id="f-name" value="${esc(custForm.name)}" placeholder="e.g. Rohit Kumar" class="w-full bg-transparent border-b-2 border-dashed border-[#25344f]/30 pb-2 mb-5 outline-none ink text-xl font-bold text-[#25344f]">\n    <label class="text-xs text-[#8b7355] mb-1 block">Phone</label>\n    <input id="f-phone" value="${esc(custForm.phone)}" placeholder="10-digit number" class="w-full bg-transparent border-b border-dashed border-[#25344f]/30 pb-2 mb-5 outline-none text-sm text-[#25344f]">\n    <label class="text-xs text-[#8b7355] mb-1 block">Address</label>\n    <input id="f-address" value="${esc(custForm.address)}" placeholder="Village / area" class="w-full bg-transparent border-b border-dashed border-[#25344f]/30 pb-2 mb-5 outline-none text-sm text-[#25344f]">\n    <label class="text-xs text-[#8b7355] mb-1 block">Note (landmark, workplace, etc. — optional)</label>\n    <input id="f-note" value="${esc(custForm.note || "")}" placeholder="e.g. works at Ram's brick site" class="w-full bg-transparent border-b border-dashed border-[#25344f]/30 pb-2 mb-5 outline-none text-sm text-[#25344f]">\n    <label class="text-xs text-[#8b7355] mb-1 block">Photo (optional — helps identify customers you don't know well)</label>\n    <div class="flex items-center gap-3 mb-8">\n      ${custForm.photo ? `<img src="${custForm.photo}" class="w-14 h-14 rounded-full object-cover border border-[#25344f]/20">` : `<div class="w-14 h-14 rounded-full bg-[#25344f]/10 flex items-center justify-center text-xl">${iconSpan("users", 22)}</div>`}\n      <input type="file" id="f-photo" accept="image/*" class="text-xs text-[#25344f] flex-1">\n      ${custForm.photo ? '<button id="btn-remove-photo" class="text-xs text-[#b23a3a] font-medium">Remove</button>' : ""}\n    </div>\n    <div class="flex gap-3">\n      <button id="btn-cancel-customer" class="flex-1 py-3 rounded-lg border border-[#25344f]/30 text-[#25344f] font-medium text-sm">Cancel</button>\n      <button id="btn-save-customer" class="flex-1 py-3 rounded-lg bg-[#b23a3a] text-[#fbf7ec] font-semibold text-sm">Save entry</button>\n    </div>\n  </div>`;
@@ -5777,7 +5777,14 @@ function showSmsCheck() {
     };
   }, () => showToast("जाँच नहीं हो पाई"));
 }
+document.addEventListener("click", (ev) => {
+  const t = ev.target && ev.target.closest ? ev.target.closest("#btn-smscheck, #btn-updcheck") : null;
+  if (!t) return;
+  if (t.id === "btn-smscheck") showSmsCheck();
+  else if (window.rkCheckUpdate) window.rkCheckUpdate(true);
+});
 function addSmsCheckButton() {
+  return; /* floating button removed: it covered the + button; now sits under the search bar */
   if (document.getElementById("rk-sms-check")) return;
   const b = document.createElement("div");
   b.id = "rk-sms-check";
@@ -5921,6 +5928,7 @@ document.addEventListener("deviceready", () => {
   }
   function addBuildLabel() {
     var cur = Number(window.APP_BUILD) || 0;
+    return; /* floating label removed: now sits under the search bar */
     if (!cur || !window.cordova || document.getElementById("rk-build-label")) return;
     var l = document.createElement("div");
     l.id = "rk-build-label";
@@ -5932,6 +5940,7 @@ document.addEventListener("deviceready", () => {
     document.body.appendChild(l);
     if (window.rkPlacePills) window.rkPlacePills();
   }
+  window.rkCheckUpdate = checkForUpdate;
   document.addEventListener("deviceready", function () {
     addBuildLabel();
     setTimeout(function () { checkForUpdate(false); }, 2500);

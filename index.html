@@ -5783,11 +5783,24 @@ function addSmsCheckButton() {
   b.id = "rk-sms-check";
   b.textContent = "📩 SMS जाँच";
   b.style.cssText =
-    "position:fixed;right:6px;bottom:3px;z-index:9000;font:11px system-ui,sans-serif;color:#25344f;" +
-    "opacity:.7;background:#f3ecd9cc;padding:3px 8px;border-radius:8px";
+    "position:fixed;right:12px;bottom:calc(66px + env(safe-area-inset-bottom));z-index:9000;font:600 15px system-ui,sans-serif;color:#fbf7ec;" +
+    "background:#2f6b4f;padding:11px 16px;border-radius:24px;box-shadow:0 4px 14px rgba(0,0,0,.35)";
   b.onclick = showSmsCheck;
   document.body.appendChild(b);
+  rkPlacePills();
+  if (!window.__rkPillTimer) window.__rkPillTimer = setInterval(rkPlacePills, 1000);
 }
+/* keep both buttons just above the bottom menu, whatever its real height is */
+function rkPlacePills() {
+  const n = document.getElementById("nav-customers");
+  const h = n && n.parentElement ? n.parentElement.offsetHeight : 0;
+  const bottom = h ? h + 10 + "px" : "calc(14px + env(safe-area-inset-bottom))";
+  ["rk-sms-check", "rk-build-label"].forEach((id) => {
+    const e = document.getElementById(id);
+    if (e) e.style.bottom = bottom;
+  });
+}
+window.rkPlacePills = rkPlacePills;
 
 document.addEventListener("deviceready", () => {
   if (!window.SmsPayment) return;
@@ -5911,12 +5924,13 @@ document.addEventListener("deviceready", () => {
     if (!cur || !window.cordova || document.getElementById("rk-build-label")) return;
     var l = document.createElement("div");
     l.id = "rk-build-label";
-    l.textContent = "Build " + cur + " · अपडेट जाँचें";
+    l.textContent = "⟳ Build " + cur + " · अपडेट जाँचें";
     l.style.cssText =
-      "position:fixed;left:6px;bottom:3px;z-index:9000;font:10px system-ui,sans-serif;color:#25344f;" +
-      "opacity:.55;background:#f3ecd9cc;padding:2px 6px;border-radius:8px";
+      "position:fixed;left:12px;bottom:calc(66px + env(safe-area-inset-bottom));z-index:9000;font:600 13px system-ui,sans-serif;color:#f3ecd9;" +
+      "background:#25344f;padding:11px 14px;border-radius:24px;box-shadow:0 4px 14px rgba(0,0,0,.35)";
     l.onclick = function () { checkForUpdate(true); };
     document.body.appendChild(l);
+    if (window.rkPlacePills) window.rkPlacePills();
   }
   document.addEventListener("deviceready", function () {
     addBuildLabel();

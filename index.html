@@ -5439,8 +5439,8 @@ function smsSave(key, arr) {
 function parseBankSms(body) {
   const t = String(body || "");
   const low = t.toLowerCase();
-  if (/\botp\b|one time password|debited|withdrawn|\bdr\b|request/.test(low)) return null;
-  if (!/(credited|received|deposited|\bcr\b|credit)/.test(low)) return null;
+  if (/\botp\b|one time password|debited|withdrawn|\bdr\b|request|cashback|reward|scratch/.test(low)) return null;
+  if (!/(credited|received|deposited|\bcr\b|credit|paid you|sent you)/.test(low)) return null;
   const m = t.match(/(?:rs\.?|inr|₹)\s*([\d,]+(?:\.\d{1,2})?)/i);
   if (!m) return null;
   const amount = Math.round(parseFloat(m[1].replace(/,/g, "")) * 100) / 100;
@@ -5467,17 +5467,36 @@ function smsVpa(body) {
   const m = String(body || "").match(/([\w.\-]{3,}@[a-z]{2,})/i);
   return m ? m[1].toLowerCase() : "";
 }
+/* payer name from "Ramesh Kumar paid you Rs 136" / "Received Rs 136 from Ramesh Kumar Ref ..." */
+function smsPayerName(body) {
+  const t = String(body || "").replace(/\s+/g, " ");
+  let m = t.match(/^\s*([A-Za-z][A-Za-z .'\-]{1,40}?)\s+(?:paid|sent)\s+you\b/i);
+  if (!m)
+    m = t.match(/\b(?:from|by)\s+([A-Za-z][A-Za-z .'\-]{1,40}?)(?=\s*(?:[-–—•:,.;(]|\bvia\b|\bon\b|\bupi\b|\bref\b|\bin\b|\bto\b|₹|rs\b|inr\b|$))/i);
+  return m ? m[1].trim() : "";
+}
+function smsNameKey(n) {
+  return String(n || "")
+    .toLowerCase()
+    .replace(/[^a-z\u0900-\u097f ]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .sort()
+    .join(" ");
+}
 function smsLearnAlias(body, cid) {
-  const v = smsVpa(body);
-  if (!v) return;
   try {
     const a = JSON.parse(localStorage.getItem(SMS_ALIAS_KEY) || "{}");
-    a[v] = cid;
+    const v = smsVpa(body);
+    if (v) a[v] = cid;
+    const pn = smsPayerName(body);
+    if (pn && smsNameKey(pn)) a["n:" + smsNameKey(pn)] = cid;
     localStorage.setItem(SMS_ALIAS_KEY, JSON.stringify(a));
   } catch {}
 }
 /* 1) customer's saved phone number found in the SMS (must match exactly one customer)
-   2) otherwise the payer's UPI id that you assigned to a customer before */
+   2) otherwise the payer's UPI id that you assigned to a customer before
+   3) otherwise the payer's name (learned before, or exactly one customer with the same name) */
 function smsMatchCustomer(body) {
   const customers = loadCustomers();
   const re = /(?<!\d)(?:91)?([6-9]\d{9})(?!\d)/g;
@@ -5497,6 +5516,26 @@ function smsMatchCustomer(body) {
       if (a[v] && customers.some((c) => String(c.id) === String(a[v]))) return a[v];
     } catch {}
   }
+  const pn = smsPayerName(body);
+  if (pn) {
+    const k = smsNameKey(pn);
+    if (k) {
+      try {
+        const a = JSON.parse(localStorage.getItem(SMS_ALIAS_KEY) || "{}");
+        const id = a["n:" + k];
+        if (id && customers.some((c) => String(c.id) === String(id))) return id;
+      } catch {}
+      let alt = "";
+      try {
+        alt = smsNameKey(transliterateToDevanagari(pn));
+      } catch {}
+      const hits = customers.filter((c) => {
+        const ck = smsNameKey(c.name);
+        return ck && (ck === k || (alt && ck === alt));
+      });
+      if (hits.length === 1) return hits[0].id;
+    }
+  }
   return null;
 }
 function smsAutoLog() {
@@ -5515,7 +5554,7 @@ function smsUndoAuto(sid) {
   txns.forEach((t) => {
     if ((t.payments || []).some((p) => p.sid === sid)) {
       t.payments = t.payments.filter((p) => p.sid !== sid);
-      t.history = [...(t.history || []), { ts: stamp, note: `↩ SMS payment ₹${e.amount.toLocaleString("en-IN")} undone` }];
+      t.history = [...(t.history || []), { ts: stamp, note: `↩ Auto payment ₹${e.amount.toLocaleString("en-IN")} undone` }];
     }
   });
   saveTxns(e.cid, txns);
@@ -5538,7 +5577,7 @@ function smsShowAutoBar(entry) {
     "border-radius:12px;padding:10px 12px;font:13px/1.35 system-ui,sans-serif;display:flex;align-items:center;gap:10px;box-shadow:0 6px 20px rgba(0,0,0,.3)";
   bar.className = "rk-autobar";
   bar.innerHTML =
-    '<div style="flex:1">✓ ₹' + entry.amount.toLocaleString("en-IN") + " → <b>" + esc(entry.name) + '</b><div style="font-size:11px;opacity:.85">Saved automatically from SMS</div></div>' +
+    '<div style="flex:1">✓ ₹' + entry.amount.toLocaleString("en-IN") + " → <b>" + esc(entry.name) + '</b><div style="font-size:11px;opacity:.85">Saved automatically</div></div>' +
     '<button style="background:#fbf7ec;color:#2f6b4f;border:0;border-radius:8px;padding:7px 12px;font-weight:700">Undo</button>';
   bar.querySelector("button").onclick = () => {
     bar.remove();
@@ -5547,17 +5586,35 @@ function smsShowAutoBar(entry) {
   document.body.appendChild(bar);
   setTimeout(() => bar.remove(), 15000);
 }
+const SMS_RECENT_KEY = "khata_sms_recent";
 function smsIngest(list) {
   const inbox = smsLoad(SMS_INBOX_KEY);
   const seen = smsLoad(SMS_SEEN_KEY);
+  const recent = smsLoad(SMS_RECENT_KEY).filter((r) => Math.abs(Date.now() - r.ts) < 864e5);
   let added = 0;
   const autos = [];
   (list || []).forEach((m) => {
     const p = parseBankSms(m.body);
     if (!p) return;
-    const key = smsSeenKey(p, m);
+    /* "n" = payment-app notification, "s" = bank SMS; one payment can arrive from both */
+    const src = String(m.sender || "").indexOf("N:") === 0 ? "n" : "s";
+    const key = src === "n" ? "n:" + m.id : smsSeenKey(p, m);
     if (seen.includes(key) || inbox.some((x) => x.key === key || x.id === m.id)) return;
-    const item = { id: m.id, key, ts: m.ts, body: m.body, amount: p.amount, ref: p.ref };
+    const mts = Number(m.ts) || Date.now();
+    const twin = recent.find((r) => !r.paired && r.src !== src && r.amount === p.amount && Math.abs(r.ts - mts) < 600000);
+    if (twin) {
+      twin.paired = true;
+      const wi = inbox.findIndex((x) => x.key === twin.key);
+      if (wi >= 0 && smsMatchCustomer(m.body)) {
+        inbox.splice(wi, 1); /* the first alert was waiting for a manual choice; this one can be matched by itself */
+      } else {
+        seen.push(key); /* same payment already handled */
+        return;
+      }
+    } else {
+      recent.push({ src, amount: p.amount, ts: mts, key, paired: false });
+    }
+    const item = { id: m.id, key, ts: m.ts, body: m.body, amount: p.amount, ref: p.ref, src };
     const cid = smsMatchCustomer(m.body);
     if (cid) {
       const sid = "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -5573,6 +5630,7 @@ function smsIngest(list) {
   });
   smsSave(SMS_INBOX_KEY, inbox);
   smsSave(SMS_SEEN_KEY, seen);
+  smsSave(SMS_RECENT_KEY, recent);
   if (autos.length) {
     try {
       localStorage.setItem(SMS_AUTO_KEY, JSON.stringify([...autos, ...smsAutoLog()].slice(0, 20)));
@@ -5630,13 +5688,13 @@ function applyDetectedPayment(customerId, amount, method, ref, sid) {
       if (left <= 0) return;
       const part = r2(Math.min(left, m.due));
       t.payments = [...(t.payments || []), mk(part)];
-      t.history = [...(t.history || []), { ts: stamp, note: `✓ SMS payment ₹${part.toLocaleString("en-IN")} (${methodEn(method)}) locked` }];
+      t.history = [...(t.history || []), { ts: stamp, note: `✓ Auto payment ₹${part.toLocaleString("en-IN")} (${methodEn(method)}) locked` }];
       left = r2(left - part);
     });
   if (left > 0) {
     const t = txns[txns.length - 1];
     t.payments = [...(t.payments || []), mk(left)];
-    t.history = [...(t.history || []), { ts: stamp, note: `✓ SMS payment ₹${left.toLocaleString("en-IN")} (${methodEn(method)}) locked (advance)` }];
+    t.history = [...(t.history || []), { ts: stamp, note: `✓ Auto payment ₹${left.toLocaleString("en-IN")} (${methodEn(method)}) locked (advance)` }];
   }
   saveTxns(customerId, txns);
   if (String(state.activeCustomerId) === String(customerId)) state.txns = txns;
@@ -5662,7 +5720,7 @@ function showNextDetectedPayment() {
   smsDialogOpen = true;
   const el = khataSheet(`
     <h2 style="font-size:20px;font-weight:700;color:#2f6b4f;margin:0 0 2px">💰 New payment received</h2>
-    <p style="font-size:12px;color:#8b7355;margin:0 0 12px">Detected from SMS · ${inbox.length} pending</p>
+    <p style="font-size:12px;color:#8b7355;margin:0 0 12px">Payment detected · ${inbox.length} pending</p>
     <div style="border:2px solid #2f6b4f;background:rgba(47,107,79,.1);border-radius:10px;padding:12px;margin-bottom:12px">
       <div style="font-size:32px;font-weight:700;color:#2f6b4f">₹${item.amount.toLocaleString("en-IN")}</div>
       ${item.ref ? `<div style="font-size:12px;margin-top:2px">Ref: ${esc(item.ref)}</div>` : ""}
@@ -5725,9 +5783,17 @@ function showSmsCheck() {
         ok(d.receive) + " SMS receive permission<br>" +
         ok(d.read) + " SMS read permission (backup)<br>" +
         ok(d.notif) + " Notification permission<br>" +
+        ok(d.notifAccess) + " Notification access (PhonePe / GPay / Paytm alerts)<br>" +
         "🕒 Last SMS the app received: <b>" + ago(d.lastAny) + "</b><br>" +
-        "💰 Last payment SMS: <b>" + ago(d.lastCredit) + "</b><br>" +
+        "💰 Last payment SMS / alert: <b>" + ago(d.lastCredit) + "</b><br>" +
         "📥 Waiting to be saved: <b>" + d.pending + "</b></div>" +
+        '<div style="font-size:12px;margin-top:8px"><b>Last messages the app saw</b> <span style="opacity:.7">(✅ = read as a payment; numbers hidden)</span>' +
+        ((d.recent || []).length
+          ? (d.recent || []).map((r) =>
+              '<div style="margin-top:5px;line-height:1.35">' + (r.ok ? "✅ " : "▫️ ") + "<b>" + esc(String(r.from || "").slice(0, 34)) + "</b> · " + (r.src === "NOTIF" ? "notification" : "SMS") + " · " + ago(r.t) +
+              '<br><span style="opacity:.75">' + esc(r.txt || "") + "</span></div>").join("")
+          : '<div style="margin-top:4px;opacity:.75">Nothing yet</div>') +
+        "</div>" +
         (smsAutoLog().filter((x) => !x.undone).slice(0, 3).length
           ? '<div style="font-size:12px;margin-top:8px"><b>Saved automatically (you can Undo):</b>' +
             smsAutoLog().filter((x) => !x.undone).slice(0, 3).map((x) =>
@@ -5740,6 +5806,8 @@ function showSmsCheck() {
             ? "SMS are reaching the app ✓"
             : "Permission is granted but the app has not received any SMS" + (xiaomi ? " — turn on Autostart below and set Battery to 'No restrictions'." : " — set the app to 'No restrictions' in battery settings.")) +
         "</div>" +
+        (d.notifAccess ? "" : '<div style="font-size:12px;margin-top:8px;line-height:1.5">Tip: allow <b>Notification access</b> and switch <b>Rental Khata</b> ON. Then payment alerts from PhonePe, GPay and Paytm are picked up too, even if your bank sends no SMS.</div>') +
+        '<button id="sc-notif" style="' + btn + 'background:#2a5a8c;color:#fff">' + (d.notifAccess ? "Notification access settings" : "Allow Notification access") + "</button>" +
         '<button id="sc-perm" style="' + btn + 'background:#2f6b4f;color:#fbf7ec">Ask for permission</button>' +
         '<button id="sc-scan" style="' + btn + 'background:#c2703d;color:#fff">Scan inbox now</button>' +
         '<button id="sc-auto" style="' + btn + 'background:#25344f;color:#f3ecd9">Open Autostart / app settings</button>' +
@@ -5751,6 +5819,11 @@ function showSmsCheck() {
       SP.requestPermission(() => showToast("Permission requested — open SMS check again"), () => {});
       el.remove();
     };
+    el.querySelector("#sc-notif").onclick = () =>
+      SP.openNotifAccess(
+        () => showToast("Switch Rental Khata ON, then come back"),
+        () => showToast("Could not open settings"),
+      );
     el.querySelector("#sc-auto").onclick = () => SP.openAutostart(() => {}, () => showToast("Could not open settings"));
     el.querySelector("#sc-scan").onclick = () => {
       SP.scanInbox(

@@ -30,9 +30,9 @@ public class SmsReceiver extends BroadcastReceiver {
 
     // \u20B9 = rupee sign
     private static final Pattern CREDIT =
-            Pattern.compile("(?i)(credited|received|deposited|\\bcr\\b|credit)");
+            Pattern.compile("(?i)(credited|received|deposited|\\bcr\\b|credit|paid you|sent you)");
     private static final Pattern REJECT =
-            Pattern.compile("(?i)(\\botp\\b|one time password|debited|withdrawn|\\bdr\\b|request)");
+            Pattern.compile("(?i)(\\botp\\b|one time password|debited|withdrawn|\\bdr\\b|request|cashback|reward|scratch)");
     private static final Pattern MONEY =
             Pattern.compile("(?i)(rs\\.?|inr|\u20B9)\\s*[0-9]");
 
@@ -51,11 +51,13 @@ public class SmsReceiver extends BroadcastReceiver {
                 if (p != null && p.getMessageBody() != null) sb.append(p.getMessageBody());
             }
             String body = sb.toString();
+            String sender = parts[0].getOriginatingAddress();
             mark(context, "last_any");
-            if (!isPaymentCredit(body)) return;
+            boolean credit = isPaymentCredit(body);
+            recordRecent(context, "SMS", sender, body, credit);
+            if (!credit) return;
             mark(context, "last_credit");
 
-            String sender = parts[0].getOriginatingAddress();
             long ts = System.currentTimeMillis();
             String id = ts + "-" + Math.abs(body.hashCode());
 
@@ -64,6 +66,46 @@ public class SmsReceiver extends BroadcastReceiver {
             showNotification(context, body, findPayerName(context, body));
         } catch (Exception e) {
             // never crash the receiver
+        }
+    }
+
+    /** Hides long digit runs (OTP, account and phone numbers) but keeps rupee amounts. */
+    static String mask(String s) {
+        if (s == null) return "";
+        String t = s.replaceAll("\\s+", " ").trim();
+        java.util.regex.Matcher m = Pattern
+                .compile("(?i)((?:rs\\.?|inr|\u20B9)\\s*)?(\\d[\\d,]*(?:\\.\\d+)?)")
+                .matcher(t);
+        StringBuffer out = new StringBuffer();
+        while (m.find()) {
+            String rep;
+            if (m.group(1) != null) rep = m.group(0);
+            else if (m.group(2).replaceAll("\\D", "").length() >= 4) rep = "****";
+            else rep = m.group(0);
+            m.appendReplacement(out, java.util.regex.Matcher.quoteReplacement(rep));
+        }
+        m.appendTail(out);
+        String r = out.toString();
+        return r.length() > 70 ? r.substring(0, 70) + "..." : r;
+    }
+
+    /** Keeps the last few messages the app saw (masked) so the SMS check screen can show them. */
+    static synchronized void recordRecent(Context ctx, String src, String from, String body, boolean ok) {
+        try {
+            SharedPreferences sp = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+            JSONArray old = new JSONArray(sp.getString("recent", "[]"));
+            JSONObject o = new JSONObject();
+            o.put("t", System.currentTimeMillis());
+            o.put("src", src);
+            o.put("from", from == null ? "" : from);
+            o.put("txt", mask(body));
+            o.put("ok", ok);
+            JSONArray arr = new JSONArray();
+            arr.put(o);
+            for (int i = 0; i < old.length() && arr.length() < 6; i++) arr.put(old.get(i));
+            sp.edit().putString("recent", arr.toString()).apply();
+        } catch (Exception e) {
+            // ignore
         }
     }
 
@@ -166,5 +208,58 @@ public class SmsReceiver extends BroadcastReceiver {
                 .setAutoCancel(true);
         if (Build.VERSION.SDK_INT < 26) b.setPriority(Notification.PRIORITY_HIGH);
         nm.notify((int) (System.currentTimeMillis() % 100000), b.build());
+    }
+
+    /**
+     * Reads payment notifications of UPI / bank apps (PhonePe, GPay, Paytm, bank apps...)
+     * once the user allows "Notification access". Works like a soundbox: no SMS needed.
+     */
+    public static class Listener extends android.service.notification.NotificationListenerService {
+        private static final Pattern PKG = Pattern.compile(
+                "(?i)(phonepe|paisa|paytm|npci|bhim|upi|bank|sbi|yono|hdfc|icici|axis|kotak|pnb|canara|baroda|idfc|mobikwik|freecharge|\\.pay|pay\\.)");
+
+        @Override
+        public void onNotificationPosted(android.service.notification.StatusBarNotification sbn) {
+            try {
+                if (sbn == null) return;
+                String pkg = sbn.getPackageName();
+                if (pkg == null || pkg.equals(getPackageName()) || !PKG.matcher(pkg).find()) return;
+                Notification n = sbn.getNotification();
+                if (n == null || n.extras == null) return;
+                CharSequence title = n.extras.getCharSequence(Notification.EXTRA_TITLE);
+                CharSequence text = n.extras.getCharSequence(Notification.EXTRA_TEXT);
+                CharSequence big = n.extras.getCharSequence(Notification.EXTRA_BIG_TEXT);
+                String body = ((title == null ? "" : title.toString()) + " "
+                        + (big != null ? big.toString() : (text == null ? "" : text.toString()))).trim();
+                if (body.length() == 0) return;
+
+                Context ctx = getApplicationContext();
+                boolean credit = isPaymentCredit(body);
+                recordRecent(ctx, "NOTIF", pkg, body, credit);
+                mark(ctx, "last_notif");
+                if (!credit) return;
+
+                // the same notification is often posted twice - keep only the first within 2 minutes
+                String sig = Integer.toHexString((pkg + body).hashCode());
+                long now = System.currentTimeMillis();
+                SharedPreferences sp = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+                String last = sp.getString("nsig", "");
+                if (last.startsWith(sig + "|")) {
+                    try {
+                        long t = Long.parseLong(last.substring(sig.length() + 1));
+                        if (now - t < 120000L) return;
+                    } catch (Exception ignore) {
+                        // fall through and store it
+                    }
+                }
+                sp.edit().putString("nsig", sig + "|" + now).apply();
+
+                mark(ctx, "last_credit");
+                store(ctx, "n-" + sig + "-" + now, "N:" + pkg, body, now);
+                SmsPaymentPlugin.notifyForeground();
+            } catch (Exception e) {
+                // never crash the listener
+            }
+        }
     }
 }

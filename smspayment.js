@@ -6,6 +6,7 @@ module.exports = {
   listen: function (onNew, fail) { exec(onNew, fail, 'SmsPayment', 'listen', []); },
   diagnose: function (ok, fail) { exec(ok, fail, 'SmsPayment', 'diagnose', []); },
   scanInbox: function (days, ok, fail) { exec(ok, fail, 'SmsPayment', 'scanInbox', [days]); },
+  openNotifAccess: function (ok, fail) { exec(ok, fail, 'SmsPayment', 'openNotifAccess', []); },
   openAutostart: function (ok, fail) { exec(ok, fail, 'SmsPayment', 'openAutostart', []); },
   syncCustomers: function (json, ok, fail) { exec(ok, fail, 'SmsPayment', 'syncCustomers', [json]); },
   getPending: function (ok, fail) { exec(ok, fail, 'SmsPayment', 'getPending', []); },

@@ -73,6 +73,16 @@ public class SmsPaymentPlugin extends CordovaPlugin {
             o.put("notif", Build.VERSION.SDK_INT < 33
                     || cordova.hasPermission("android.permission.POST_NOTIFICATIONS"));
             o.put("lastAny", sp.getLong("last_any", 0));
+            o.put("lastNotif", sp.getLong("last_notif", 0));
+            boolean na = false;
+            try {
+                na = androidx.core.app.NotificationManagerCompat
+                        .getEnabledListenerPackages(ctx).contains(ctx.getPackageName());
+            } catch (Exception ignore) {
+                // keep false
+            }
+            o.put("notifAccess", na);
+            o.put("recent", new JSONArray(sp.getString("recent", "[]")));
             o.put("lastCredit", sp.getLong("last_credit", 0));
             o.put("pending", new JSONArray(sp.getString(SmsReceiver.KEY_PENDING, "[]")).length());
             callbackContext.success(o);
@@ -121,6 +131,27 @@ public class SmsPaymentPlugin extends CordovaPlugin {
             return true;
         }
 
+        if ("openNotifAccess".equals(action)) {
+            Context ctx = cordova.getActivity();
+            try {
+                Intent i = new Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS");
+                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                ctx.startActivity(i);
+            } catch (Exception e1) {
+                try {
+                    Intent i = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            Uri.parse("package:" + ctx.getPackageName()));
+                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    ctx.startActivity(i);
+                } catch (Exception e2) {
+                    callbackContext.error(String.valueOf(e2.getMessage()));
+                    return true;
+                }
+            }
+            callbackContext.success();
+            return true;
+        }
+
         if ("openAutostart".equals(action)) {
             Context ctx = cordova.getActivity();
             try {
@@ -152,6 +183,14 @@ public class SmsPaymentPlugin extends CordovaPlugin {
 
         if ("listen".equals(action)) {
             listener = callbackContext;
+            try {
+                // ask Android to reconnect the notification listener if it was stopped
+                android.service.notification.NotificationListenerService.requestRebind(
+                        new ComponentName(cordova.getActivity().getApplicationContext(),
+                                SmsReceiver.Listener.class));
+            } catch (Exception ignore) {
+                // not allowed yet - fine
+            }
             PluginResult r = new PluginResult(PluginResult.Status.NO_RESULT);
             r.setKeepCallback(true);
             callbackContext.sendPluginResult(r);

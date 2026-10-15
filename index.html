@@ -1449,7 +1449,6 @@ const CUSTOMERS_KEY = "khata_customers_list",
   txnKey = (t) => "khata_txns_" + t,
   BACKUP_META_KEY = "khata_last_backup",
   STOCK_KEY = "khata_stock_totals",
-  NUMERAL_STYLE_KEY = "khata_numeral_style",
   BILL_SHOW_CLEARED_KEY = "khata_bill_show_cleared",
   RECEIPT_CODES_KEY = "khata_receipt_verification_codes";
 
@@ -1506,19 +1505,9 @@ function loadBillShowCleared() {
 function saveBillShowCleared(t) {
   localStorage.setItem(BILL_SHOW_CLEARED_KEY, t ? "yes" : "no");
 }
-function loadNumeralStyle() {
-  return localStorage.getItem(NUMERAL_STYLE_KEY) || "latin";
-}
-function saveNumeralStyle(t) {
-  localStorage.setItem(NUMERAL_STYLE_KEY, t);
-}
-const DEVA_DIGITS = ["०", "१", "२", "३", "४", "५", "६", "७", "८", "९"];
-function toDevaDigits(t) {
-  return String(t).replace(/[0-9]/g, (t) => DEVA_DIGITS[Number(t)]);
-}
 function fmtINRForBill(t) {
-  const e = Math.round(t).toLocaleString("en-IN");
-  return "deva" === loadNumeralStyle() ? toDevaDigits(e) : e;
+  /* bill numbers are always Latin digits: 1, 2, 3 */
+  return Math.round(t).toLocaleString("en-IN");
 }
 function loadStock() {
   try {
@@ -1619,7 +1608,7 @@ function exportBackup() {
     URL.revokeObjectURL(n);
     nativeShareFile(e, `rental-khata-backup-${s}.json`, "Rental Khata Backup").then(() => {
       localStorage.setItem(BACKUP_META_KEY, new Date().toISOString());
-      showToast("Backup तैयार — Drive या WhatsApp में सेव करें");
+      showToast("Backup ready — save it to Drive or WhatsApp");
     });
     return;
   }
@@ -2377,11 +2366,11 @@ function askShareFormat() {
   return new Promise((resolve) => {
     const btn = "width:100%;padding:13px;border:0;border-radius:12px;font-weight:700;font-size:15px;margin-top:10px;";
     const el = khataSheet(
-      '<div style="font-weight:700;font-size:17px">रसीद कैसे भेजें?</div>' +
-      '<div style="font-size:12px;opacity:.75;margin-top:4px;line-height:1.4">WhatsApp फोटो को छोटा करके धुंधला कर देता है। PDF में पूरी क्वालिटी रहती है।</div>' +
-      '<button data-f="pdf" style="' + btn + 'background:#2f6b4f;color:#fbf7ec">PDF भेजें (पूरी क्वालिटी)</button>' +
-      '<button data-f="img" style="' + btn + 'background:#c2703d;color:#fff">फोटो भेजें</button>' +
-      '<button data-f="" style="' + btn + 'background:transparent;color:#25344f;border:1px solid rgba(37,52,79,.3)">रद्द करें</button>'
+      '<div style="font-weight:700;font-size:17px">How do you want to send the receipt?</div>' +
+      '<div style="font-size:12px;opacity:.75;margin-top:4px;line-height:1.4">WhatsApp shrinks photos and makes them blurry. A PDF keeps full quality.</div>' +
+      '<button data-f="pdf" style="' + btn + 'background:#2f6b4f;color:#fbf7ec">Send as PDF (full quality)</button>' +
+      '<button data-f="img" style="' + btn + 'background:#c2703d;color:#fff">Send as photo</button>' +
+      '<button data-f="" style="' + btn + 'background:transparent;color:#25344f;border:1px solid rgba(37,52,79,.3)">Cancel</button>'
     );
     el.addEventListener("click", (ev) => {
       const b = ev.target.closest ? ev.target.closest("[data-f]") : null;
@@ -2407,7 +2396,7 @@ async function shareBlobFile(a, e, n, mime) {
     r.click(),
     document.body.removeChild(r),
     URL.revokeObjectURL(o),
-    showToast("रसीद डाउनलोड हुई — WhatsApp में भेजें"));
+    showToast("Receipt downloaded — send it on WhatsApp"));
 }
 async function shareCanvasAsImage(t, e, n) {
   const fmt = await askShareFormat();
@@ -2420,7 +2409,7 @@ async function shareCanvasAsImage(t, e, n) {
     const a = await new Promise((r) => t.toBlob(r, "image/png"));
     await shareBlobFile(a, e, n, "image/png");
   } catch (err) {
-    showToast("Share नहीं हो पाया");
+    showToast("Share failed");
   }
 }
 function resizeImageForStorage(t, e, n) {
@@ -3550,7 +3539,7 @@ function closeQrModal() {
 function renderQrModal() {
   const t = qrModalData,
     e = buildQrDataUrl(buildUpiLink(t.amount, t.note));
-  return `\n  <div id="qr-modal-backdrop" class="fixed inset-0 z-50 flex items-center justify-center p-6" style="background:rgba(37,52,79,0.75)">\n    <div class="bg-[#fbf7ec] rounded-2xl p-6 text-center max-w-xs w-full">\n      <p class="ink text-xl font-bold text-[#25344f] mb-1">${esc(COMPANY_NAME_HI)}</p>\n      <p class="text-xs text-[#8b7355] mb-4">स्कैन करके भुगतान करें</p>\n      <img src="${e}" alt="UPI QR" class="mx-auto mb-4 rounded-lg" style="width:220px;height:220px">\n      <p class="mono text-2xl font-bold text-[#b23a3a] mb-1">₹${Number(t.amount).toLocaleString("en-IN")}</p>\n      <p class="text-xs text-[#8b7355] mb-5">${esc("Ankit Kumar")} • ${esc(getActiveUpiId())}</p>\n      <button id="btn-close-qr" class="w-full py-2.5 rounded-lg bg-[#fbf7ec] text-[#fbf7ec] text-sm font-medium">Close</button>\n    </div>\n  </div>`;
+  return `\n  <div id="qr-modal-backdrop" class="fixed inset-0 z-50 flex items-center justify-center p-6" style="background:rgba(37,52,79,0.75)">\n    <div class="bg-[#fbf7ec] rounded-2xl p-6 text-center max-w-xs w-full">\n      <p class="ink text-xl font-bold text-[#25344f] mb-1">${esc(COMPANY_NAME_HI)}</p>\n      <p class="text-xs text-[#8b7355] mb-4">Scan to pay</p>\n      <img src="${e}" alt="UPI QR" class="mx-auto mb-4 rounded-lg" style="width:220px;height:220px">\n      <p class="mono text-2xl font-bold text-[#b23a3a] mb-1">₹${Number(t.amount).toLocaleString("en-IN")}</p>\n      <p class="text-xs text-[#8b7355] mb-5">${esc("Ankit Kumar")} • ${esc(getActiveUpiId())}</p>\n      <button id="btn-close-qr" class="w-full py-2.5 rounded-lg bg-[#fbf7ec] text-[#fbf7ec] text-sm font-medium">Close</button>\n    </div>\n  </div>`;
 }
 function openBillPicker() {
   const t = loadBillShowCleared(),
@@ -3597,7 +3586,7 @@ function closeWaLangModal() {
 function sendWhatsAppReminder(t) {
   const e = getActiveCustomer(),
     n = normalizePhoneForWhatsApp(e.phone);
-  if (!n) return void showToast("इस ग्राहक का फ़ोन नंबर नहीं है");
+  if (!n) return void showToast("This customer has no phone number");
   const a = state.txns.reduce(
       (t, e) => {
         const n = txnMath(e);
@@ -3617,7 +3606,7 @@ function sendWhatsAppReminder(t) {
   (openExternal(`https://wa.me/${n}?text=${encodeURIComponent(o)}`), closeWaLangModal());
 }
 function renderWaLangModal() {
-  return '\n  <div id="wa-lang-backdrop" class="fixed inset-0 z-50 flex items-center justify-center p-6" style="background:rgba(11,18,32,0.85)">\n    <div class="bg-[#fbf7ec] rounded-2xl p-6 text-center max-w-xs w-full">\n      <p class="ink text-lg font-bold text-[#25344f] mb-1">Send reminder in:</p>\n      <p class="text-xs text-[#8b7355] mb-5">Choose the message language</p>\n      <div class="flex flex-col gap-2.5">\n        <button id="btn-wa-hindi" class="w-full py-3 rounded-lg bg-[#2f6b4f] text-[#f3ecd9] font-semibold text-sm">हिंदी (Hindi)</button>\n        <button id="btn-wa-english" class="w-full py-3 rounded-lg border border-[#25344f]/30 text-[#25344f] font-semibold text-sm">English</button>\n        <button id="btn-wa-cancel" class="w-full py-2.5 text-[#8b7355] text-xs font-medium mt-1">Cancel</button>\n      </div>\n    </div>\n  </div>';
+  return '\n  <div id="wa-lang-backdrop" class="fixed inset-0 z-50 flex items-center justify-center p-6" style="background:rgba(11,18,32,0.85)">\n    <div class="bg-[#fbf7ec] rounded-2xl p-6 text-center max-w-xs w-full">\n      <p class="ink text-lg font-bold text-[#25344f] mb-1">Send reminder in:</p>\n      <p class="text-xs text-[#8b7355] mb-5">Choose the message language</p>\n      <div class="flex flex-col gap-2.5">\n        <button id="btn-wa-hindi" class="w-full py-3 rounded-lg bg-[#2f6b4f] text-[#f3ecd9] font-semibold text-sm">Hindi</button>\n        <button id="btn-wa-english" class="w-full py-3 rounded-lg border border-[#25344f]/30 text-[#25344f] font-semibold text-sm">English</button>\n        <button id="btn-wa-cancel" class="w-full py-2.5 text-[#8b7355] text-xs font-medium mt-1">Cancel</button>\n      </div>\n    </div>\n  </div>';
 }
 function showToast(t, e) {
   ((toastMsg = t),
@@ -3703,7 +3692,7 @@ function renderHeader() {
               : "calc" === state.tab
                 ? "Calculator"
                 : "Rental Khata";
-  return `\n  <div class="px-5 pt-6 pb-3 flex items-start gap-3 sticky top-0 z-10" style="background:#f3ecd9">\n    ${e ? `<button id="btn-back" class="p-1 -ml-1 mt-0.5 text-[#25344f] flex-shrink-0">${iconSpan("chevronLeft", 22)}</button>` : '<div class="w-9 h-9 rounded-full flex items-center justify-center text-[#fbf7ec] ink font-bold text-base flex-shrink-0" style="background:#25344f">खा</div>'}\n    <div>\n      <h1 class="text-2xl ink font-bold text-[#25344f] leading-tight">${a}</h1>\n      ${"list" === state.screen ? `<p class="text-xs text-[#8b7355] mono ml-0.5">${state.customers.length} account${1 !== state.customers.length ? "s" : ""}</p>` : ""}\n    </div>\n    ${"list" === state.screen && "customers" === state.tab ? `\n      <div class="ml-auto flex gap-2">\n        <button id="btn-export" class="text-[11px] px-2.5 py-1.5 rounded-full bg-[#25344f]/10 text-[#25344f] font-medium">${iconSpan("download", 13)} Backup</button>\n        <label class="text-[11px] px-2.5 py-1.5 rounded-full bg-[#25344f]/10 text-[#25344f] font-medium cursor-pointer">\n          ${iconSpan("upload", 13)} Restore<input type="file" id="import-file" accept="application/json" class="hidden">\n        </label>\n      </div>` : ""}\n  </div>`;
+  return `\n  <div class="px-5 pt-6 pb-3 flex items-start gap-3 sticky top-0 z-10" style="background:#f3ecd9">\n    ${e ? `<button id="btn-back" class="p-1 -ml-1 mt-0.5 text-[#25344f] flex-shrink-0">${iconSpan("chevronLeft", 22)}</button>` : '<div class="w-9 h-9 rounded-full flex items-center justify-center text-[#fbf7ec] ink font-bold text-base flex-shrink-0" style="background:#25344f">K</div>'}\n    <div>\n      <h1 class="text-2xl ink font-bold text-[#25344f] leading-tight">${a}</h1>\n      ${"list" === state.screen ? `<p class="text-xs text-[#8b7355] mono ml-0.5">${state.customers.length} account${1 !== state.customers.length ? "s" : ""}</p>` : ""}\n    </div>\n    ${"list" === state.screen && "customers" === state.tab ? `\n      <div class="ml-auto flex gap-2">\n        <button id="btn-export" class="text-[11px] px-2.5 py-1.5 rounded-full bg-[#25344f]/10 text-[#25344f] font-medium">${iconSpan("download", 13)} Backup</button>\n        <label class="text-[11px] px-2.5 py-1.5 rounded-full bg-[#25344f]/10 text-[#25344f] font-medium cursor-pointer">\n          ${iconSpan("upload", 13)} Restore<input type="file" id="import-file" accept="application/json" class="hidden">\n        </label>\n      </div>` : ""}\n  </div>`;
 }
 function renderBackupBanner() {
   const t = daysSinceBackup();
@@ -3818,7 +3807,7 @@ function renderStats() {
           )
           .join("")
       : '<p class="text-xs text-[#8b7355]">No outstanding dues 🎉</p>';
-  return `\n  <div class="px-4 pt-2 pb-4">\n    <div class="grid grid-cols-2 gap-2 mb-4">\n      <button id="btn-goto-stock" class="py-2.5 rounded-lg border border-[#25344f]/30 text-[#25344f] text-xs font-medium">${iconSpan("package", 14)} Manage Stock</button>\n      <button id="btn-goto-ratecard" class="py-2.5 rounded-lg border border-[#25344f]/30 text-[#25344f] text-xs font-medium">${iconSpan("tag", 14)} Rate Card</button>\n      <button id="btn-goto-booked" class="py-2.5 rounded-lg border border-[#25344f]/30 text-[#25344f] text-xs font-medium">${iconSpan("calendar", 14)} Upcoming Bookings</button>\n      <button id="btn-download-report" class="py-2.5 rounded-lg border border-[#25344f]/30 text-[#25344f] text-xs font-medium">${iconSpan("download", 13)} Download Report</button>\n      <button id="btn-toggle-numerals" class="col-span-2 py-2.5 rounded-lg border border-[#25344f]/30 text-[#25344f] text-xs font-medium">${iconSpan("hash", 14)} Bill Numbers: ${"deva" === loadNumeralStyle() ? "हिंदी अंक (१२३)" : "English (123)"}</button>\n      <button id="btn-toggle-bill-cleared" class="col-span-2 py-2.5 rounded-lg border border-[#25344f]/30 text-[#25344f] text-xs font-medium">${iconSpan("receipt", 14)} Bill shows: ${loadBillShowCleared() ? "All items (incl. fully paid)" : "Pending items only"}</button>\n      <button id="btn-toggle-upi" class="col-span-2 py-2.5 rounded-lg border border-[#25344f]/30 text-[#25344f] text-xs font-medium">${iconSpan("qrCode", 14)} UPI Account: ${UPI_ACCOUNTS[loadUpiAccountIndex()].label}</button>\n      <button id="btn-toggle-bill-qr" class="col-span-2 py-2.5 rounded-lg border border-[#25344f]/30 text-[#25344f] text-xs font-medium">${iconSpan("qrCode", 14)} Bill QR code: ${loadBillShowQr() ? "Shown" : "Hidden"}</button>\n    </div>\n    <div class="grid grid-cols-2 gap-3 mb-5">\n      <div class="rounded-xl p-3.5 overflow-hidden" style="background:#fbf7ec">\n        <p class="text-[11px] text-[#8b7355] mono mb-1">Total Outstanding</p>\n        <p class="text-2xl mono font-bold tracking-tight whitespace-nowrap ${t.totalDue > 0 ? "text-[#b23a3a]" : "text-[#2f6b4f]"}">₹${Math.round(t.totalDue).toLocaleString("en-IN")}</p>\n        <p class="text-[10px] text-[#8b7355] mt-0.5">${t.totalCustomersWithDue} customer${1 !== t.totalCustomersWithDue ? "s" : ""} owe</p>\n      </div>\n      <div class="rounded-xl p-3.5 overflow-hidden" style="background:#fbf7ec">\n        <p class="text-[11px] text-[#8b7355] mono mb-1">Total Collected</p>\n        <p class="text-2xl mono font-bold tracking-tight whitespace-nowrap text-[#2f6b4f]">₹${Math.round(t.totalCollected).toLocaleString("en-IN")}</p>\n        <p class="text-[10px] text-[#8b7355] mt-0.5">all-time, all customers</p>\n      </div>\n    </div>\n\n    <div class="rounded-xl p-4 mb-5" style="background:#fbf7ec">\n      <div class="flex items-center justify-between mb-3">\n        <p class="text-sm ink font-bold text-[#25344f]">Collections</p>\n        <div class="flex rounded-lg overflow-hidden border border-[#25344f]/20">\n          <button id="btn-range-6m" class="px-2.5 py-1 text-[11px] font-medium ${"6m" === statsRange ? "bg-[#2a5a8c] text-[#fbf7ec]" : "text-[#8b7355]"}">6 Months</button>\n          <button id="btn-range-year" class="px-2.5 py-1 text-[11px] font-medium ${"year" === statsRange ? "bg-[#2a5a8c] text-[#fbf7ec]" : "text-[#8b7355]"}">This Year</button>\n        </div>\n      </div>\n      <div class="relative">\n        <div class="flex items-end gap-2 overflow-x-auto pt-4" style="height:160px">${a}</div>\n        <div class="pointer-events-none absolute top-0 right-0 h-full w-6" style="background:linear-gradient(to right, transparent, #fbf7ec)"></div>\n      </div>\n      <p class="text-[10px] text-[#8b7355] mt-2">Tap a month to see each collection.</p>\n      ${o}\n    </div>\n\n    <div class="rounded-xl p-4" style="background:#fbf7ec">\n      <p class="text-sm ink font-bold text-[#25344f] mb-3">Top Outstanding Dues</p>\n      ${r}\n    </div>\n  </div>`;
+  return `\n  <div class="px-4 pt-2 pb-4">\n    <div class="grid grid-cols-2 gap-2 mb-4">\n      <button id="btn-goto-stock" class="py-2.5 rounded-lg border border-[#25344f]/30 text-[#25344f] text-xs font-medium">${iconSpan("package", 14)} Manage Stock</button>\n      <button id="btn-goto-ratecard" class="py-2.5 rounded-lg border border-[#25344f]/30 text-[#25344f] text-xs font-medium">${iconSpan("tag", 14)} Rate Card</button>\n      <button id="btn-goto-booked" class="py-2.5 rounded-lg border border-[#25344f]/30 text-[#25344f] text-xs font-medium">${iconSpan("calendar", 14)} Upcoming Bookings</button>\n      <button id="btn-download-report" class="py-2.5 rounded-lg border border-[#25344f]/30 text-[#25344f] text-xs font-medium">${iconSpan("download", 13)} Download Report</button>\n      \n      <button id="btn-toggle-bill-cleared" class="col-span-2 py-2.5 rounded-lg border border-[#25344f]/30 text-[#25344f] text-xs font-medium">${iconSpan("receipt", 14)} Bill shows: ${loadBillShowCleared() ? "All items (incl. fully paid)" : "Pending items only"}</button>\n      <button id="btn-toggle-upi" class="col-span-2 py-2.5 rounded-lg border border-[#25344f]/30 text-[#25344f] text-xs font-medium">${iconSpan("qrCode", 14)} UPI Account: ${UPI_ACCOUNTS[loadUpiAccountIndex()].label}</button>\n      <button id="btn-toggle-bill-qr" class="col-span-2 py-2.5 rounded-lg border border-[#25344f]/30 text-[#25344f] text-xs font-medium">${iconSpan("qrCode", 14)} Bill QR code: ${loadBillShowQr() ? "Shown" : "Hidden"}</button>\n    </div>\n    <div class="grid grid-cols-2 gap-3 mb-5">\n      <div class="rounded-xl p-3.5 overflow-hidden" style="background:#fbf7ec">\n        <p class="text-[11px] text-[#8b7355] mono mb-1">Total Outstanding</p>\n        <p class="text-2xl mono font-bold tracking-tight whitespace-nowrap ${t.totalDue > 0 ? "text-[#b23a3a]" : "text-[#2f6b4f]"}">₹${Math.round(t.totalDue).toLocaleString("en-IN")}</p>\n        <p class="text-[10px] text-[#8b7355] mt-0.5">${t.totalCustomersWithDue} customer${1 !== t.totalCustomersWithDue ? "s" : ""} owe</p>\n      </div>\n      <div class="rounded-xl p-3.5 overflow-hidden" style="background:#fbf7ec">\n        <p class="text-[11px] text-[#8b7355] mono mb-1">Total Collected</p>\n        <p class="text-2xl mono font-bold tracking-tight whitespace-nowrap text-[#2f6b4f]">₹${Math.round(t.totalCollected).toLocaleString("en-IN")}</p>\n        <p class="text-[10px] text-[#8b7355] mt-0.5">all-time, all customers</p>\n      </div>\n    </div>\n\n    <div class="rounded-xl p-4 mb-5" style="background:#fbf7ec">\n      <div class="flex items-center justify-between mb-3">\n        <p class="text-sm ink font-bold text-[#25344f]">Collections</p>\n        <div class="flex rounded-lg overflow-hidden border border-[#25344f]/20">\n          <button id="btn-range-6m" class="px-2.5 py-1 text-[11px] font-medium ${"6m" === statsRange ? "bg-[#2a5a8c] text-[#fbf7ec]" : "text-[#8b7355]"}">6 Months</button>\n          <button id="btn-range-year" class="px-2.5 py-1 text-[11px] font-medium ${"year" === statsRange ? "bg-[#2a5a8c] text-[#fbf7ec]" : "text-[#8b7355]"}">This Year</button>\n        </div>\n      </div>\n      <div class="relative">\n        <div class="flex items-end gap-2 overflow-x-auto pt-4" style="height:160px">${a}</div>\n        <div class="pointer-events-none absolute top-0 right-0 h-full w-6" style="background:linear-gradient(to right, transparent, #fbf7ec)"></div>\n      </div>\n      <p class="text-[10px] text-[#8b7355] mt-2">Tap a month to see each collection.</p>\n      ${o}\n    </div>\n\n    <div class="rounded-xl p-4" style="background:#fbf7ec">\n      <p class="text-sm ink font-bold text-[#25344f] mb-3">Top Outstanding Dues</p>\n      ${r}\n    </div>\n  </div>`;
 }
 function computeStockUsage() {
   const t = {};
@@ -4044,7 +4033,7 @@ function renderCustomerListBody() {
   return 0 === l.length
     ? t
       ? `<div class="text-center text-[#8b7355] mt-16 px-6 ml-2">\n      ${iconSpan("search", 28)}\n      <p class="ink text-lg mt-3">No matches for "${esc(state.search.trim())}"</p>\n      <p class="text-sm mt-1">Try a different name or item.</p>\n    </div>`
-      : '<div class="text-center text-[#8b7355] mt-16 px-6 ml-2">\n      <p class="ink text-lg">Khaali panna — page is empty</p>\n      <p class="text-sm mt-1">Add a customer to start their ledger.</p>\n    </div>'
+      : '<div class="text-center text-[#8b7355] mt-16 px-6 ml-2">\n      <p class="ink text-lg">No customers yet</p>\n      <p class="text-sm mt-1">Add a customer to start their ledger.</p>\n    </div>'
     : `<div class="space-y-1 ml-2">\n    ${l
         .map((t) => {
           const e = n[t.id] ?? 0,
@@ -4094,7 +4083,7 @@ function bindOpenCustomerButtons() {
 }
 function renderList() {
   const t = state.search.trim() ? 0 : computeBookedList().length;
-  return `\n  <div class="px-4">\n    ${t > 0 ? `\n    <button data-goto-booked="1" class="w-full flex items-center justify-between gap-2 border border-[#2a5a8c]/30 bg-[#2a5a8c]/10 rounded-lg px-3 py-2.5 mb-3 ml-2 text-left">\n      <span class="flex items-center gap-2 text-sm text-[#25344f] font-medium">${iconSpan("calendar", 15)} ${t} upcoming booking${1 !== t ? "s" : ""} — material not yet given</span>\n      <span class="text-[#2a5a8c] text-xs font-semibold flex-shrink-0">View →</span>\n    </button>` : ""}\n    <div class="flex items-center gap-2 bg-[#fbf7ec] rounded-lg px-3 py-2.5 mb-4 border border-[#25344f]/15 ml-2">\n      <span class="text-[#8b7355]">${iconSpan("search", 16)}</span>\n      <input id="search-input" value="${esc(state.search)}" placeholder="Find by name or item (e.g. bamboo)..." class="bg-transparent flex-1 outline-none text-sm text-[#25344f]">\n    </div>\n    ${window.cordova && window.APP_BUILD ? `<div class="flex gap-2 mb-4 ml-2"><button id="btn-smscheck" class="flex-1 text-xs px-3 py-2 rounded-full font-semibold" style="background:#2f6b4f;color:#fbf7ec">📩 SMS जाँच</button><button id="btn-updcheck" class="flex-1 text-xs px-3 py-2 rounded-full font-semibold" style="background:#25344f;color:#f3ecd9">⟳ Build ${window.APP_BUILD} · अपडेट जाँचें</button></div>` : ""}\n    <div id="customer-list-body">${renderCustomerListBody()}</div>\n    <button id="btn-add-customer" class="fixed bottom-20 right-5 w-14 h-14 rounded-full bg-[#b23a3a] text-[#fbf7ec] flex items-center justify-center shadow-lg text-2xl z-50">+</button>\n  </div>`;
+  return `\n  <div class="px-4">\n    ${t > 0 ? `\n    <button data-goto-booked="1" class="w-full flex items-center justify-between gap-2 border border-[#2a5a8c]/30 bg-[#2a5a8c]/10 rounded-lg px-3 py-2.5 mb-3 ml-2 text-left">\n      <span class="flex items-center gap-2 text-sm text-[#25344f] font-medium">${iconSpan("calendar", 15)} ${t} upcoming booking${1 !== t ? "s" : ""} — material not yet given</span>\n      <span class="text-[#2a5a8c] text-xs font-semibold flex-shrink-0">View →</span>\n    </button>` : ""}\n    <div class="flex items-center gap-2 bg-[#fbf7ec] rounded-lg px-3 py-2.5 mb-4 border border-[#25344f]/15 ml-2">\n      <span class="text-[#8b7355]">${iconSpan("search", 16)}</span>\n      <input id="search-input" value="${esc(state.search)}" placeholder="Find by name or item (e.g. bamboo)..." class="bg-transparent flex-1 outline-none text-sm text-[#25344f]">\n    </div>\n    ${window.cordova && window.APP_BUILD ? `<div class="flex gap-2 mb-4 ml-2"><button id="btn-smscheck" class="flex-1 text-xs px-3 py-2 rounded-full font-semibold" style="background:#2f6b4f;color:#fbf7ec">📩 SMS check</button><button id="btn-updcheck" class="flex-1 text-xs px-3 py-2 rounded-full font-semibold" style="background:#25344f;color:#f3ecd9">⟳ Build ${window.APP_BUILD} · Check for update</button></div>` : ""}\n    <div id="customer-list-body">${renderCustomerListBody()}</div>\n    <button id="btn-add-customer" class="fixed bottom-20 right-5 w-14 h-14 rounded-full bg-[#b23a3a] text-[#fbf7ec] flex items-center justify-center shadow-lg text-2xl z-50">+</button>\n  </div>`;
 }
 function renderAddCustomer() {
   return `\n  <div class="px-6 py-2 ml-2">\n    <label class="text-xs text-[#8b7355] mb-1 block">Name</label>\n    <input id="f-name" value="${esc(custForm.name)}" placeholder="e.g. Rohit Kumar" class="w-full bg-transparent border-b-2 border-dashed border-[#25344f]/30 pb-2 mb-5 outline-none ink text-xl font-bold text-[#25344f]">\n    <label class="text-xs text-[#8b7355] mb-1 block">Phone</label>\n    <input id="f-phone" value="${esc(custForm.phone)}" placeholder="10-digit number" class="w-full bg-transparent border-b border-dashed border-[#25344f]/30 pb-2 mb-5 outline-none text-sm text-[#25344f]">\n    <label class="text-xs text-[#8b7355] mb-1 block">Address</label>\n    <input id="f-address" value="${esc(custForm.address)}" placeholder="Village / area" class="w-full bg-transparent border-b border-dashed border-[#25344f]/30 pb-2 mb-5 outline-none text-sm text-[#25344f]">\n    <label class="text-xs text-[#8b7355] mb-1 block">Note (landmark, workplace, etc. — optional)</label>\n    <input id="f-note" value="${esc(custForm.note || "")}" placeholder="e.g. works at Ram's brick site" class="w-full bg-transparent border-b border-dashed border-[#25344f]/30 pb-2 mb-5 outline-none text-sm text-[#25344f]">\n    <label class="text-xs text-[#8b7355] mb-1 block">Photo (optional — helps identify customers you don't know well)</label>\n    <div class="flex items-center gap-3 mb-8">\n      ${custForm.photo ? `<img src="${custForm.photo}" class="w-14 h-14 rounded-full object-cover border border-[#25344f]/20">` : `<div class="w-14 h-14 rounded-full bg-[#25344f]/10 flex items-center justify-center text-xl">${iconSpan("users", 22)}</div>`}\n      <input type="file" id="f-photo" accept="image/*" class="text-xs text-[#25344f] flex-1">\n      ${custForm.photo ? '<button id="btn-remove-photo" class="text-xs text-[#b23a3a] font-medium">Remove</button>' : ""}\n    </div>\n    <div class="flex gap-3">\n      <button id="btn-cancel-customer" class="flex-1 py-3 rounded-lg border border-[#25344f]/30 text-[#25344f] font-medium text-sm">Cancel</button>\n      <button id="btn-save-customer" class="flex-1 py-3 rounded-lg bg-[#b23a3a] text-[#fbf7ec] font-semibold text-sm">Save entry</button>\n    </div>\n  </div>`;
@@ -4457,9 +4446,6 @@ function attachHandlers() {
       ((state.screen = "booked"), render());
     }),
     t("#btn-download-report")?.addEventListener("click", downloadReport),
-    t("#btn-toggle-numerals")?.addEventListener("click", () => {
-      (saveNumeralStyle("deva" === loadNumeralStyle() ? "latin" : "deva"), render());
-    }),
     t("#btn-toggle-bill-cleared")?.addEventListener("click", () => {
       (saveBillShowCleared(!loadBillShowCleared()), render());
     }),
@@ -4810,7 +4796,7 @@ function attachHandlers() {
             ((t.payments = [...(t.payments || []), { amount: n, date: nowISO(), verified: true, method: payMethod }]),
               (t.history = [
                 ...(t.history || []),
-                { ts: nowISO(), note: `✓ VERIFIED Payment ₹${n.toLocaleString("en-IN")} (${payMethod}) locked` },
+                { ts: nowISO(), note: `✓ VERIFIED Payment ₹${n.toLocaleString("en-IN")} (${methodEn(payMethod)}) locked` },
               ]),
               (a -= n));
           }),
@@ -4822,7 +4808,7 @@ function attachHandlers() {
               ...(t.history || []),
               {
                 ts: nowISO(),
-                note: `✓ VERIFIED Payment ₹${a.toLocaleString("en-IN")} (${payMethod}) locked (advance)`,
+                note: `✓ VERIFIED Payment ₹${a.toLocaleString("en-IN")} (${methodEn(payMethod)}) locked (advance)`,
               },
             ]));
         }
@@ -5355,7 +5341,7 @@ async function nativeShareFile(blob, filename, title) {
       window.SmsPayment.shareFile(b64, filename, blob.type || "application/octet-stream", title || filename, ok, fail),
     );
   } catch (err) {
-    showToast("Share नहीं हो पाया");
+    showToast("Share failed");
   }
   return true;
 }
@@ -5370,6 +5356,9 @@ function khataSheet(html) {
     "</div>";
   document.body.appendChild(el);
   return el;
+}
+function methodEn(m) {
+  return String(m || "").replace(/^.*\((.*)\)\s*$/, "$1");
 }
 function methodButtonsHtml(options) {
   return options
@@ -5405,18 +5394,18 @@ const BTN_SECONDARY =
 // Manual "Add Payment" confirmation
 function showPaymentVerificationDialog(customerName, paymentAmount, totalDue, onVerify) {
   const el = khataSheet(`
-    <h2 style="font-size:22px;font-weight:700;margin:0 0 4px">💰 भुगतान पक्का करें</h2>
-    <p style="font-size:13px;color:#8b7355;margin:0 0 14px">राशि जाँचकर सेव करें</p>
+    <h2 style="font-size:22px;font-weight:700;margin:0 0 4px">💰 Confirm payment</h2>
+    <p style="font-size:13px;color:#8b7355;margin:0 0 14px">Check the amount, then save</p>
     <div style="border:2px solid rgba(178,58,58,.3);border-radius:10px;padding:12px;margin-bottom:12px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:#8b7355">ग्राहक</span><b>${esc(customerName)}</b></div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="color:#8b7355">कुल बकाया</span><b style="color:#b23a3a">₹${Number(totalDue).toLocaleString("en-IN")}</b></div>
-      <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid rgba(37,52,79,.2);padding-top:8px"><span style="color:#8b7355">मिली राशि</span><b style="font-size:28px;color:#2f6b4f">₹${Number(paymentAmount).toLocaleString("en-IN")}</b></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:#8b7355">Customer</span><b>${esc(customerName)}</b></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="color:#8b7355">Total due</span><b style="color:#b23a3a">₹${Number(totalDue).toLocaleString("en-IN")}</b></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid rgba(37,52,79,.2);padding-top:8px"><span style="color:#8b7355">Amount received</span><b style="font-size:28px;color:#2f6b4f">₹${Number(paymentAmount).toLocaleString("en-IN")}</b></div>
     </div>
-    <div style="font-size:12px;color:#8b7355;margin-bottom:6px">भुगतान कैसे मिला?</div>
-    <div style="display:flex;gap:8px;margin-bottom:16px">${methodButtonsHtml([["नकद (Cash)", "💵 नकद"], ["UPI", "📱 UPI"], ["बैंक ट्रांसफर (Bank)", "🏦 Bank"]])}</div>
+    <div style="font-size:12px;color:#8b7355;margin-bottom:6px">How was it paid?</div>
+    <div style="display:flex;gap:8px;margin-bottom:16px">${methodButtonsHtml([["नकद (Cash)", "💵 Cash"], ["UPI", "📱 UPI"], ["बैंक ट्रांसफर (Bank)", "🏦 Bank"]])}</div>
     <div style="display:flex;gap:10px">
-      <button id="pv-cancel" style="${BTN_SECONDARY}">रद्द करें</button>
-      <button id="pv-ok" style="${BTN_PRIMARY}">✓ सेव करें</button>
+      <button id="pv-cancel" style="${BTN_SECONDARY}">Cancel</button>
+      <button id="pv-ok" style="${BTN_PRIMARY}">✓ Save</button>
     </div>`);
   const getMethod = khataMethodPicker(el, "नकद (Cash)");
   el.querySelector("#pv-cancel").onclick = () => el.remove();
@@ -5539,7 +5528,7 @@ function smsUndoAuto(sid) {
   inbox.push(e.item);
   smsSave(SMS_INBOX_KEY, inbox);
   render();
-  showToast("वापस लिया — अब ग्राहक खुद चुनें");
+  showToast("Undone — now choose the customer yourself");
   showNextDetectedPayment();
 }
 function smsShowAutoBar(entry) {
@@ -5549,7 +5538,7 @@ function smsShowAutoBar(entry) {
     "border-radius:12px;padding:10px 12px;font:13px/1.35 system-ui,sans-serif;display:flex;align-items:center;gap:10px;box-shadow:0 6px 20px rgba(0,0,0,.3)";
   bar.className = "rk-autobar";
   bar.innerHTML =
-    '<div style="flex:1">✓ ₹' + entry.amount.toLocaleString("en-IN") + " → <b>" + esc(entry.name) + '</b><div style="font-size:11px;opacity:.85">SMS से अपने आप सेव हुआ</div></div>' +
+    '<div style="flex:1">✓ ₹' + entry.amount.toLocaleString("en-IN") + " → <b>" + esc(entry.name) + '</b><div style="font-size:11px;opacity:.85">Saved automatically from SMS</div></div>' +
     '<button style="background:#fbf7ec;color:#2f6b4f;border:0;border-radius:8px;padding:7px 12px;font-weight:700">Undo</button>';
   bar.querySelector("button").onclick = () => {
     bar.remove();
@@ -5626,7 +5615,7 @@ function collectPendingSms() {
 function applyDetectedPayment(customerId, amount, method, ref, sid) {
   const txns = loadTxns(customerId);
   if (!txns.length) {
-    showToast("इस ग्राहक की कोई एंट्री नहीं है");
+    showToast("This customer has no entries");
     return false;
   }
   const stamp = nowISO();
@@ -5641,13 +5630,13 @@ function applyDetectedPayment(customerId, amount, method, ref, sid) {
       if (left <= 0) return;
       const part = r2(Math.min(left, m.due));
       t.payments = [...(t.payments || []), mk(part)];
-      t.history = [...(t.history || []), { ts: stamp, note: `✓ SMS payment ₹${part.toLocaleString("en-IN")} (${method}) locked` }];
+      t.history = [...(t.history || []), { ts: stamp, note: `✓ SMS payment ₹${part.toLocaleString("en-IN")} (${methodEn(method)}) locked` }];
       left = r2(left - part);
     });
   if (left > 0) {
     const t = txns[txns.length - 1];
     t.payments = [...(t.payments || []), mk(left)];
-    t.history = [...(t.history || []), { ts: stamp, note: `✓ SMS payment ₹${left.toLocaleString("en-IN")} (${method}) locked (advance)` }];
+    t.history = [...(t.history || []), { ts: stamp, note: `✓ SMS payment ₹${left.toLocaleString("en-IN")} (${methodEn(method)}) locked (advance)` }];
   }
   saveTxns(customerId, txns);
   if (String(state.activeCustomerId) === String(customerId)) state.txns = txns;
@@ -5667,25 +5656,25 @@ function showNextDetectedPayment() {
   const opts = rows
     .map(
       ({ c, due }) =>
-        `<option value="${esc(c.id)}">${esc(c.name)}${due > 0 ? " — बकाया ₹" + Math.round(due).toLocaleString("en-IN") : ""}</option>`,
+        `<option value="${esc(c.id)}">${esc(c.name)}${due > 0 ? " — due ₹" + Math.round(due).toLocaleString("en-IN") : ""}</option>`,
     )
     .join("");
   smsDialogOpen = true;
   const el = khataSheet(`
-    <h2 style="font-size:20px;font-weight:700;color:#2f6b4f;margin:0 0 2px">💰 नया भुगतान मिला</h2>
-    <p style="font-size:12px;color:#8b7355;margin:0 0 12px">SMS से पता चला · कुल ${inbox.length} बाकी</p>
+    <h2 style="font-size:20px;font-weight:700;color:#2f6b4f;margin:0 0 2px">💰 New payment received</h2>
+    <p style="font-size:12px;color:#8b7355;margin:0 0 12px">Detected from SMS · ${inbox.length} pending</p>
     <div style="border:2px solid #2f6b4f;background:rgba(47,107,79,.1);border-radius:10px;padding:12px;margin-bottom:12px">
       <div style="font-size:32px;font-weight:700;color:#2f6b4f">₹${item.amount.toLocaleString("en-IN")}</div>
       ${item.ref ? `<div style="font-size:12px;margin-top:2px">Ref: ${esc(item.ref)}</div>` : ""}
       <div style="font-size:11px;color:#8b7355;margin-top:8px;word-break:break-word">${esc(String(item.body).slice(0, 240))}</div>
     </div>
-    <div style="font-size:12px;color:#8b7355;margin-bottom:4px">किस ग्राहक का भुगतान है?</div>
+    <div style="font-size:12px;color:#8b7355;margin-bottom:4px">Which customer paid?</div>
     <select id="sms-cust" style="width:100%;padding:12px;border:1px solid rgba(37,52,79,.3);border-radius:10px;background:#fff;font-size:15px;margin-bottom:12px">${opts}</select>
     <div style="display:flex;gap:8px;margin-bottom:16px">${methodButtonsHtml([["UPI", "📱 UPI"], ["बैंक ट्रांसफर (Bank)", "🏦 Bank"]])}</div>
     <div style="display:flex;gap:8px">
-      <button id="sms-discard" style="${BTN_SECONDARY};color:#b23a3a">हटाएं</button>
-      <button id="sms-later" style="${BTN_SECONDARY}">बाद में</button>
-      <button id="sms-save" style="${BTN_PRIMARY}">✓ सेव</button>
+      <button id="sms-discard" style="${BTN_SECONDARY};color:#b23a3a">Remove</button>
+      <button id="sms-later" style="${BTN_SECONDARY}">Later</button>
+      <button id="sms-save" style="${BTN_PRIMARY}">✓ Save</button>
     </div>`);
   const sel = el.querySelector("#sms-cust");
   if (rows.some((r) => String(r.c.id) === String(state.activeCustomerId))) sel.value = state.activeCustomerId;
@@ -5708,7 +5697,7 @@ function showNextDetectedPayment() {
     dropItem();
     smsSave(SMS_SEEN_KEY, [...smsLoad(SMS_SEEN_KEY), item.key || item.ref || smsBodyKey(item.body)]);
     const who = rows.find((r) => String(r.c.id) === String(sel.value));
-    showToast(`✓ ₹${item.amount.toLocaleString("en-IN")} सेव हुआ${who ? " — " + who.c.name : ""}`);
+    showToast(`✓ ₹${item.amount.toLocaleString("en-IN")} saved${who ? " — " + who.c.name : ""}`);
     close();
     render();
     showNextDetectedPayment();
@@ -5718,64 +5707,64 @@ function showNextDetectedPayment() {
 function showSmsCheck() {
   const SP = window.SmsPayment;
   if (!SP || !SP.diagnose) {
-    showToast("यह जाँच सिर्फ इंस्टॉल किए ऐप में चलती है");
+    showToast("This check works only in the installed app");
     return;
   }
   SP.diagnose((d) => {
     const ok = (v) => (v ? "✅" : "❌");
     const ago = (t) => {
-      if (!t) return "अभी तक कोई नहीं";
+      if (!t) return "none yet";
       const m = Math.round((Date.now() - t) / 60000);
-      return m < 60 ? m + " मिनट पहले" : m < 1440 ? Math.round(m / 60) + " घंटे पहले" : Math.round(m / 1440) + " दिन पहले";
+      return m < 60 ? m + " min ago" : m < 1440 ? Math.round(m / 60) + " hr ago" : Math.round(m / 1440) + " days ago";
     };
     const xiaomi = /xiaomi|redmi|poco/i.test(d.brand || "");
     const btn = "width:100%;padding:12px;border:0;border-radius:10px;font-weight:700;font-size:14px;margin-top:8px;";
     const el = khataSheet(
-      '<div style="font-weight:700;font-size:18px;margin-bottom:8px">📩 SMS जाँच</div>' +
+      '<div style="font-weight:700;font-size:18px;margin-bottom:8px">📩 SMS check</div>' +
         '<div style="font-size:14px;line-height:1.9">' +
-        ok(d.receive) + " SMS मिलने की permission<br>" +
-        ok(d.read) + " SMS पढ़ने की permission (बैकअप)<br>" +
+        ok(d.receive) + " SMS receive permission<br>" +
+        ok(d.read) + " SMS read permission (backup)<br>" +
         ok(d.notif) + " Notification permission<br>" +
-        "🕒 आखिरी SMS ऐप को मिला: <b>" + ago(d.lastAny) + "</b><br>" +
-        "💰 आखिरी पेमेंट SMS: <b>" + ago(d.lastCredit) + "</b><br>" +
-        "📥 सेव होने बाकी: <b>" + d.pending + "</b></div>" +
+        "🕒 Last SMS the app received: <b>" + ago(d.lastAny) + "</b><br>" +
+        "💰 Last payment SMS: <b>" + ago(d.lastCredit) + "</b><br>" +
+        "📥 Waiting to be saved: <b>" + d.pending + "</b></div>" +
         (smsAutoLog().filter((x) => !x.undone).slice(0, 3).length
-          ? '<div style="font-size:12px;margin-top:8px"><b>अपने आप सेव हुए (Undo कर सकते हैं):</b>' +
+          ? '<div style="font-size:12px;margin-top:8px"><b>Saved automatically (you can Undo):</b>' +
             smsAutoLog().filter((x) => !x.undone).slice(0, 3).map((x) =>
               '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px"><span>₹' + x.amount.toLocaleString("en-IN") + " → " + esc(x.name) + '</span><button data-undo="' + x.sid + '" style="border:1px solid #b23a3a;color:#b23a3a;background:transparent;border-radius:8px;padding:3px 10px;font-size:12px">Undo</button></div>').join("") + "</div>"
           : "") +
         '<div style="font-size:12px;opacity:.8;margin-top:8px;line-height:1.5">' +
         (!d.receive
-          ? "❌ पहले permission दें: नीचे बटन दबाएँ। न खुले तो App info → Permissions → SMS → Allow।"
+          ? "❌ Grant permission first: tap the button below. If it does not open, go to App info → Permissions → SMS → Allow."
           : d.lastAny
-            ? "SMS ऐप तक पहुँच रहे हैं ✓"
-            : "Permission है पर ऐप को कोई SMS नहीं मिला" + (xiaomi ? " — नीचे Autostart चालू करें और Battery 'No restrictions' रखें।" : " — बैटरी सेटिंग में ऐप को 'No restrictions' रखें।")) +
+            ? "SMS are reaching the app ✓"
+            : "Permission is granted but the app has not received any SMS" + (xiaomi ? " — turn on Autostart below and set Battery to 'No restrictions'." : " — set the app to 'No restrictions' in battery settings.")) +
         "</div>" +
-        '<button id="sc-perm" style="' + btn + 'background:#2f6b4f;color:#fbf7ec">Permission माँगें</button>' +
-        '<button id="sc-scan" style="' + btn + 'background:#c2703d;color:#fff">इनबॉक्स अभी स्कैन करें</button>' +
-        '<button id="sc-auto" style="' + btn + 'background:#25344f;color:#f3ecd9">Autostart / ऐप सेटिंग खोलें</button>' +
-        '<button id="sc-close" style="' + btn + 'background:transparent;color:#25344f;border:1px solid rgba(37,52,79,.3)">बंद करें</button>',
+        '<button id="sc-perm" style="' + btn + 'background:#2f6b4f;color:#fbf7ec">Ask for permission</button>' +
+        '<button id="sc-scan" style="' + btn + 'background:#c2703d;color:#fff">Scan inbox now</button>' +
+        '<button id="sc-auto" style="' + btn + 'background:#25344f;color:#f3ecd9">Open Autostart / app settings</button>' +
+        '<button id="sc-close" style="' + btn + 'background:transparent;color:#25344f;border:1px solid rgba(37,52,79,.3)">Close</button>',
     );
     el.querySelector("#sc-close").onclick = () => el.remove();
     el.querySelectorAll("[data-undo]").forEach((b) => (b.onclick = () => { el.remove(); smsUndoAuto(b.getAttribute("data-undo")); }));
     el.querySelector("#sc-perm").onclick = () => {
-      SP.requestPermission(() => showToast("Permission माँगी गई — फिर से SMS जाँच खोलें"), () => {});
+      SP.requestPermission(() => showToast("Permission requested — open SMS check again"), () => {});
       el.remove();
     };
-    el.querySelector("#sc-auto").onclick = () => SP.openAutostart(() => {}, () => showToast("सेटिंग नहीं खुली"));
+    el.querySelector("#sc-auto").onclick = () => SP.openAutostart(() => {}, () => showToast("Could not open settings"));
     el.querySelector("#sc-scan").onclick = () => {
       SP.scanInbox(
         7,
         (list) => {
           const n = smsIngest(list);
           el.remove();
-          showToast(n ? n + " नया पेमेंट SMS मिला" : "पिछले 7 दिन में कोई नया पेमेंट SMS नहीं मिला");
+          showToast(n ? n + " new payment SMS found" : "No new payment SMS in the last 7 days");
           showNextDetectedPayment();
         },
-        (e) => showToast(String(e) === "no_permission" ? "पहले SMS पढ़ने की permission दें" : "स्कैन नहीं हो पाया"),
+        (e) => showToast(String(e) === "no_permission" ? "Grant SMS read permission first" : "Scan failed"),
       );
     };
-  }, () => showToast("जाँच नहीं हो पाई"));
+  }, () => showToast("Check failed"));
 }
 document.addEventListener("click", (ev) => {
   const t = ev.target && ev.target.closest ? ev.target.closest("#btn-smscheck, #btn-updcheck") : null;
@@ -5788,7 +5777,7 @@ function addSmsCheckButton() {
   if (document.getElementById("rk-sms-check")) return;
   const b = document.createElement("div");
   b.id = "rk-sms-check";
-  b.textContent = "📩 SMS जाँच";
+  b.textContent = "📩 SMS check";
   b.style.cssText =
     "position:fixed;right:12px;bottom:calc(66px + env(safe-area-inset-bottom));z-index:9000;font:600 15px system-ui,sans-serif;color:#fbf7ec;" +
     "background:#2f6b4f;padding:11px 16px;border-radius:24px;box-shadow:0 4px 14px rgba(0,0,0,.35)";
@@ -5824,7 +5813,7 @@ document.addEventListener("deviceready", () => {
         (s) => {
           if (s !== "granted") {
             smsPermWarned = true;
-            showToast("SMS permission बंद है — Settings में allow करें");
+            showToast("SMS permission is off — allow it in Settings");
           }
         },
         () => {},
@@ -5861,9 +5850,9 @@ document.addEventListener("deviceready", () => {
       "border-radius:14px;padding:12px 14px;box-shadow:0 6px 24px rgba(0,0,0,.35);font:14px/1.35 system-ui,sans-serif;" +
       "display:flex;align-items:center;gap:10px";
     b.innerHTML =
-      '<div style="flex:1"><b>नया अपडेट उपलब्ध (Build ' + build + ')</b>' +
-      '<div style="font-size:12px;opacity:.8;margin-top:2px">पहले Backup ले लें, फिर Update दबाएँ</div></div>' +
-      '<button id="upd-later" style="background:transparent;color:#f3ecd9;border:1px solid #f3ecd955;border-radius:10px;padding:8px 10px;font-size:13px">बाद में</button>' +
+      '<div style="flex:1"><b>Update available (Build ' + build + ')</b>' +
+      '<div style="font-size:12px;opacity:.8;margin-top:2px">Take a Backup first, then tap Update</div></div>' +
+      '<button id="upd-later" style="background:transparent;color:#f3ecd9;border:1px solid #f3ecd955;border-radius:10px;padding:8px 10px;font-size:13px">Later</button>' +
       '<button id="upd-go" style="background:#c2703d;color:#fff;border:0;border-radius:10px;padding:8px 14px;font-weight:700;font-size:13px">Update</button>';
     document.body.appendChild(b);
     document.getElementById("upd-later").onclick = function () {
@@ -5879,7 +5868,7 @@ document.addEventListener("deviceready", () => {
   function checkForUpdate(manual) {
     var cur = Number(window.APP_BUILD) || 0;
     if (!cur || !REPO || !window.cordova) {
-      if (manual) toast("यह अपडेट सिर्फ इंस्टॉल किए गए ऐप में चलता है");
+      if (manual) toast("Updates work only in the installed app");
       return;
     }
     var lastErr = "";
@@ -5910,11 +5899,11 @@ document.addEventListener("deviceready", () => {
           });
         });
     }
-    if (manual) toast("अपडेट जाँच रहे हैं…");
+    if (manual) toast("Checking for updates…");
     getLatest()
       .then(function (L) {
         if (L.build <= cur) {
-          if (manual) toast("आप नवीनतम Build " + cur + " पर हैं ✓");
+          if (manual) toast("You are on the latest build (" + cur + ") ✓");
           return;
         }
         var skipped = 0;
@@ -5923,7 +5912,7 @@ document.addEventListener("deviceready", () => {
         showUpdateBanner(L.build, L.url);
       })
       .catch(function (err) {
-        if (manual) toast("जाँच नहीं हो पाई (" + (lastErr ? lastErr + " / " : "") + (err && err.message ? err.message : "network") + "). इंटरनेट देखें");
+        if (manual) toast("Check failed (" + (lastErr ? lastErr + " / " : "") + (err && err.message ? err.message : "network") + "). Check your internet.");
       });
   }
   function addBuildLabel() {
@@ -5932,7 +5921,7 @@ document.addEventListener("deviceready", () => {
     if (!cur || !window.cordova || document.getElementById("rk-build-label")) return;
     var l = document.createElement("div");
     l.id = "rk-build-label";
-    l.textContent = "⟳ Build " + cur + " · अपडेट जाँचें";
+    l.textContent = "⟳ Build " + cur + " · Check for update";
     l.style.cssText =
       "position:fixed;left:12px;bottom:calc(66px + env(safe-area-inset-bottom));z-index:9000;font:600 13px system-ui,sans-serif;color:#f3ecd9;" +
       "background:#25344f;padding:11px 14px;border-radius:24px;box-shadow:0 4px 14px rgba(0,0,0,.35)";

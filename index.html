@@ -2831,6 +2831,9 @@ const ICONS = {
   upload: ico(
     '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/>',
   ),
+  settings: ico(
+    '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+  ),
   alertTriangle: ico(
     '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/>',
   ),
@@ -3692,7 +3695,7 @@ function renderHeader() {
               : "calc" === state.tab
                 ? "Calculator"
                 : "Rental Khata";
-  return `\n  <div class="px-5 pt-6 pb-3 flex items-start gap-3 sticky top-0 z-10" style="background:#f3ecd9">\n    ${e ? `<button id="btn-back" class="p-1 -ml-1 mt-0.5 text-[#25344f] flex-shrink-0">${iconSpan("chevronLeft", 22)}</button>` : '<div class="w-9 h-9 rounded-full flex items-center justify-center text-[#fbf7ec] ink font-bold text-base flex-shrink-0" style="background:#25344f">K</div>'}\n    <div>\n      <h1 class="text-2xl ink font-bold text-[#25344f] leading-tight">${a}</h1>\n      ${"list" === state.screen ? `<p class="text-xs text-[#8b7355] mono ml-0.5">${state.customers.length} account${1 !== state.customers.length ? "s" : ""}</p>` : ""}\n    </div>\n    ${"list" === state.screen && "customers" === state.tab ? `\n      <div class="ml-auto flex gap-2">\n        <button id="btn-export" class="text-[11px] px-2.5 py-1.5 rounded-full bg-[#25344f]/10 text-[#25344f] font-medium">${iconSpan("download", 13)} Backup</button>\n        <label class="text-[11px] px-2.5 py-1.5 rounded-full bg-[#25344f]/10 text-[#25344f] font-medium cursor-pointer">\n          ${iconSpan("upload", 13)} Restore<input type="file" id="import-file" accept="application/json" class="hidden">\n        </label>\n      </div>` : ""}\n  </div>`;
+  return `\n  <div class="px-5 pt-6 pb-3 flex items-start gap-3 sticky top-0 z-10" style="background:#f3ecd9">\n    ${e ? `<button id="btn-back" class="p-1 -ml-1 mt-0.5 text-[#25344f] flex-shrink-0">${iconSpan("chevronLeft", 22)}</button>` : '<div class="w-9 h-9 rounded-full flex items-center justify-center text-[#fbf7ec] ink font-bold text-base flex-shrink-0" style="background:#25344f">K</div>'}\n    <div>\n      <h1 class="text-2xl ink font-bold text-[#25344f] leading-tight">${a}</h1>\n      ${"list" === state.screen ? `<p class="text-xs text-[#8b7355] mono ml-0.5">${state.customers.length} account${1 !== state.customers.length ? "s" : ""}${"customers" === state.tab && state.customers.length ? (() => { const d = computeListMetrics().totals.due; return d > 0 ? ` · <span style="color:#b23a3a">₹${Math.round(d).toLocaleString("en-IN")} due</span>` : ""; })() : ""}</p>` : ""}\n    </div>\n    ${"list" === state.screen && "customers" === state.tab ? `\n      <div class="ml-auto"><button id="btn-tools" aria-label="Tools" style="display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 12px;border-radius:999px;background:#25344f;color:#f3ecd9;font-size:12px;font-weight:600">${iconSpan("settings", 14)}<span>Tools</span></button></div>` : ""}\n  </div>`;
 }
 function renderBackupBanner() {
   const t = daysSinceBackup();
@@ -3701,7 +3704,7 @@ function renderBackupBanner() {
     0 === state.customers.length ||
     t < 7
     ? ""
-    : `<div class="fixed bottom-20 left-0 right-20 pl-4 pr-2 z-40">\n    <div class="bg-[#fbe9b0] border border-[#b23a3a]/30 rounded-lg px-3 py-2 text-[11px] text-[#25344f] flex items-center justify-between">\n      <span>${t === 1 / 0 ? "You haven't backed up yet" : t + " days since last backup"} — tap Backup above to save a copy.</span>\n    </div>\n  </div>`;
+    : `<div class="fixed bottom-20 left-0 right-20 pl-4 pr-2 z-40">\n    <div data-open-tools="1" class="bg-[#fbe9b0] border border-[#b23a3a]/30 rounded-lg px-3 py-2 text-[11px] text-[#25344f] flex items-center justify-between">\n      <span>${t === 1 / 0 ? "You haven't backed up yet" : t + " days since last backup"} — tap here, then Backup, to save a copy.</span>\n    </div>\n  </div>`;
 }
 function monthKey(t) {
   const e = new Date(t);
@@ -4002,6 +4005,41 @@ function customerOverdueDays(t) {
     e
   );
 }
+let listMetrics = null;
+function computeListMetrics() {
+  const M = { n: {}, a: {}, s: {}, o: {}, r: {}, out: {}, totals: { due: 0, owe: 0, adv: 0, advN: 0, outN: 0, all: state.customers.length } };
+  state.customers.forEach((c) => {
+    const tx = loadTxns(c.id);
+    const bal = tx.reduce((x, y) => x + txnMath(y).due, 0);
+    M.n[c.id] = bal;
+    M.a[c.id] = summarizeOutstanding(tx);
+    M.s[c.id] = getCustomerLastActivity(c, tx);
+    M.o[c.id] = customerOverdueDays(tx);
+    M.r[c.id] = customerDueInfo(tx);
+    M.out[c.id] = tx.some((y) => {
+      const m = txnMath(y);
+      return !m.notYetStarted && m.items.some((i) => i.remaining > 0);
+    });
+    if (bal > 0) {
+      M.totals.due += bal;
+      M.totals.owe++;
+    } else if (bal < 0) {
+      M.totals.adv += -bal;
+      M.totals.advN++;
+    }
+    if (M.out[c.id]) M.totals.outN++;
+  });
+  return M;
+}
+function filterEmptyHtml(f) {
+  const m =
+    f === "due"
+      ? ["Nobody owes you anything", "Every account is settled."]
+      : f === "out"
+        ? ["No material is out right now", "Everything has been returned."]
+        : ["No advances held", "No customer has paid ahead."];
+  return '<div class="text-center text-[#8b7355] mt-16 px-6 ml-2"><p class="ink text-lg">' + m[0] + '</p><p class="text-sm mt-1">' + m[1] + "</p></div>";
+}
 function renderCustomerListBody() {
   const t = state.search.toLowerCase().trim(),
     e = state.customers.filter(
@@ -4016,16 +4054,25 @@ function renderCustomerListBody() {
     a = {},
     s = {},
     o = {},
-    r = {};
+    r = {},
+    ob = {};
   e.forEach((t) => {
     const e = loadTxns(t.id);
     ((n[t.id] = e.reduce((t, e) => t + txnMath(e).due, 0)),
       (a[t.id] = summarizeOutstanding(e)),
       (s[t.id] = getCustomerLastActivity(t, e)),
       (o[t.id] = customerOverdueDays(e)),
-      (r[t.id] = customerDueInfo(e)));
+      (r[t.id] = customerDueInfo(e)),
+      (ob[t.id] = e.some((y) => {
+        const m = txnMath(y);
+        return !m.notYetStarted && m.items.some((i) => i.remaining > 0);
+      })));
   });
-  const l = [...e].sort((t, e) => {
+  const f = state.listFilter || "all",
+    l = [...e]
+      .filter((c) => "all" === f || ("due" === f && (n[c.id] ?? 0) > 0) || ("adv" === f && (n[c.id] ?? 0) < 0) || ("out" === f && ob[c.id]))
+      .sort((t, e) => {
+    if ("due" === f) return (n[e.id] ?? 0) - (n[t.id] ?? 0);
     const a = 0 === (n[t.id] ?? 0) ? 1 : 0,
       o = 0 === (n[e.id] ?? 0) ? 1 : 0;
     return a !== o ? a - o : s[e.id] - s[t.id];
@@ -4033,7 +4080,9 @@ function renderCustomerListBody() {
   return 0 === l.length
     ? t
       ? `<div class="text-center text-[#8b7355] mt-16 px-6 ml-2">\n      ${iconSpan("search", 28)}\n      <p class="ink text-lg mt-3">No matches for "${esc(state.search.trim())}"</p>\n      <p class="text-sm mt-1">Try a different name or item.</p>\n    </div>`
-      : '<div class="text-center text-[#8b7355] mt-16 px-6 ml-2">\n      <p class="ink text-lg">No customers yet</p>\n      <p class="text-sm mt-1">Add a customer to start their ledger.</p>\n    </div>'
+      : "all" !== f
+        ? filterEmptyHtml(f)
+        : '<div class="text-center text-[#8b7355] mt-16 px-6 ml-2">\n      <p class="ink text-lg">No customers yet</p>\n      <p class="text-sm mt-1">Tap + to add your first customer.</p>\n    </div>'
     : `<div class="space-y-1 ml-2">\n    ${l
         .map((t) => {
           const e = n[t.id] ?? 0,
@@ -4083,7 +4132,19 @@ function bindOpenCustomerButtons() {
 }
 function renderList() {
   const t = state.search.trim() ? 0 : computeBookedList().length;
-  return `\n  <div class="px-4">\n    ${t > 0 ? `\n    <button data-goto-booked="1" class="w-full flex items-center justify-between gap-2 border border-[#2a5a8c]/30 bg-[#2a5a8c]/10 rounded-lg px-3 py-2.5 mb-3 ml-2 text-left">\n      <span class="flex items-center gap-2 text-sm text-[#25344f] font-medium">${iconSpan("calendar", 15)} ${t} upcoming booking${1 !== t ? "s" : ""} — material not yet given</span>\n      <span class="text-[#2a5a8c] text-xs font-semibold flex-shrink-0">View →</span>\n    </button>` : ""}\n    <div class="flex items-center gap-2 bg-[#fbf7ec] rounded-lg px-3 py-2.5 mb-4 border border-[#25344f]/15 ml-2">\n      <span class="text-[#8b7355]">${iconSpan("search", 16)}</span>\n      <input id="search-input" value="${esc(state.search)}" placeholder="Find by name or item (e.g. bamboo)..." class="bg-transparent flex-1 outline-none text-sm text-[#25344f]">\n    </div>\n    ${window.cordova && window.APP_BUILD ? `<div class="flex gap-2 mb-4 ml-2"><button id="btn-smscheck" class="flex-1 text-xs px-3 py-2 rounded-full font-semibold" style="background:#2f6b4f;color:#fbf7ec">📩 SMS check</button><button id="btn-updcheck" class="flex-1 text-xs px-3 py-2 rounded-full font-semibold" style="background:#25344f;color:#f3ecd9">⟳ Build ${window.APP_BUILD} · Check for update</button></div>` : ""}\n    <div id="customer-list-body">${renderCustomerListBody()}</div>\n    <button id="btn-add-customer" class="fixed bottom-20 right-5 w-14 h-14 rounded-full bg-[#b23a3a] text-[#fbf7ec] flex items-center justify-center shadow-lg text-2xl z-50">+</button>\n  </div>`;
+  const M = (listMetrics = computeListMetrics()),
+    T = M.totals,
+    f = state.listFilter || "all";
+  const chip = (key, label, n) => {
+    const on = f === key;
+    return (
+      '<button data-list-filter="' + key + '" class="text-xs font-semibold" style="flex:0 0 auto;border-radius:999px;padding:7px 12px;border:1px solid ' + (on ? "#25344f" : "rgba(37,52,79,.3)") + ";background:" + (on ? "#25344f" : "transparent") + ";color:" + (on ? "#f3ecd9" : "#25344f") + '">' + label + ' <span style="font-weight:500;opacity:.75">' + n + "</span></button>"
+    );
+  };
+  const chips = state.customers.length
+    ? '<div class="mb-4 ml-2" style="display:flex;gap:8px;overflow-x:auto;scrollbar-width:none">' + chip("all", "All", T.all) + chip("due", "Owe", T.owe) + chip("out", "Items out", T.outN) + chip("adv", "Advance", T.advN) + "</div>"
+    : "";
+  return `\n  <div class="px-4">\n    ${t > 0 ? `\n    <button data-goto-booked="1" class="flex items-center justify-between gap-2 border border-[#2a5a8c]/30 bg-[#2a5a8c]/10 rounded-lg px-3 py-2.5 mb-3 ml-2 text-left" style="width:calc(100% - 8px)">\n      <span class="flex items-center gap-2 text-sm text-[#25344f] font-medium">${iconSpan("calendar", 15)} ${t} upcoming booking${1 !== t ? "s" : ""} — material not yet given</span>\n      <span class="text-[#2a5a8c] text-xs font-semibold flex-shrink-0">View →</span>\n    </button>` : ""}\n    <div class="flex items-center gap-2 bg-[#fbf7ec] rounded-lg px-3 py-2.5 mb-4 border border-[#25344f]/15 ml-2">\n      <span class="text-[#8b7355]">${iconSpan("search", 16)}</span>\n      <input id="search-input" value="${esc(state.search)}" placeholder="Find by name or item (e.g. bamboo)..." class="bg-transparent flex-1 outline-none text-sm text-[#25344f]">\n    </div>\n    ${chips}\n    <div id="customer-list-body">${renderCustomerListBody()}</div>\n    <button id="btn-add-customer" class="fixed bottom-20 right-5 w-14 h-14 rounded-full bg-[#b23a3a] text-[#fbf7ec] flex items-center justify-center shadow-lg text-2xl z-50">+</button>\n  </div>`;
 }
 function renderAddCustomer() {
   return `\n  <div class="px-6 py-2 ml-2">\n    <label class="text-xs text-[#8b7355] mb-1 block">Name</label>\n    <input id="f-name" value="${esc(custForm.name)}" placeholder="e.g. Rohit Kumar" class="w-full bg-transparent border-b-2 border-dashed border-[#25344f]/30 pb-2 mb-5 outline-none ink text-xl font-bold text-[#25344f]">\n    <label class="text-xs text-[#8b7355] mb-1 block">Phone</label>\n    <input id="f-phone" value="${esc(custForm.phone)}" placeholder="10-digit number" class="w-full bg-transparent border-b border-dashed border-[#25344f]/30 pb-2 mb-5 outline-none text-sm text-[#25344f]">\n    <label class="text-xs text-[#8b7355] mb-1 block">Address</label>\n    <input id="f-address" value="${esc(custForm.address)}" placeholder="Village / area" class="w-full bg-transparent border-b border-dashed border-[#25344f]/30 pb-2 mb-5 outline-none text-sm text-[#25344f]">\n    <label class="text-xs text-[#8b7355] mb-1 block">Note (landmark, workplace, etc. — optional)</label>\n    <input id="f-note" value="${esc(custForm.note || "")}" placeholder="e.g. works at Ram's brick site" class="w-full bg-transparent border-b border-dashed border-[#25344f]/30 pb-2 mb-5 outline-none text-sm text-[#25344f]">\n    <label class="text-xs text-[#8b7355] mb-1 block">Photo (optional — helps identify customers you don't know well)</label>\n    <div class="flex items-center gap-3 mb-8">\n      ${custForm.photo ? `<img src="${custForm.photo}" class="w-14 h-14 rounded-full object-cover border border-[#25344f]/20">` : `<div class="w-14 h-14 rounded-full bg-[#25344f]/10 flex items-center justify-center text-xl">${iconSpan("users", 22)}</div>`}\n      <input type="file" id="f-photo" accept="image/*" class="text-xs text-[#25344f] flex-1">\n      ${custForm.photo ? '<button id="btn-remove-photo" class="text-xs text-[#b23a3a] font-medium">Remove</button>' : ""}\n    </div>\n    <div class="flex gap-3">\n      <button id="btn-cancel-customer" class="flex-1 py-3 rounded-lg border border-[#25344f]/30 text-[#25344f] font-medium text-sm">Cancel</button>\n      <button id="btn-save-customer" class="flex-1 py-3 rounded-lg bg-[#b23a3a] text-[#fbf7ec] font-semibold text-sm">Save entry</button>\n    </div>\n  </div>`;
@@ -5839,9 +5900,48 @@ function showSmsCheck() {
     };
   }, () => showToast("Check failed"));
 }
+function showToolsSheet() {
+  const b = "width:100%;padding:13px;border:0;border-radius:12px;font-weight:700;font-size:14px;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px;";
+  const days = daysSinceBackup();
+  const last = days === 1 / 0 ? "Never backed up" : days === 0 ? "Last backup: today" : "Last backup: " + days + " day" + (days === 1 ? "" : "s") + " ago";
+  const inApp = !!(window.SmsPayment && window.SmsPayment.diagnose);
+  const upd = !!(window.cordova && window.APP_BUILD);
+  const el = khataSheet(
+    '<div style="font-weight:700;font-size:18px">Tools</div>' +
+      '<div style="font-size:12px;color:#8b7355;margin:2px 0 6px">' + last + "</div>" +
+      '<button id="tools-backup" style="' + b + 'background:#25344f;color:#f3ecd9">' + iconSpan("download", 17) + "<span>Backup</span></button>" +
+      '<label style="' + b + 'background:#25344f;color:#f3ecd9;cursor:pointer">' + iconSpan("upload", 17) + '<span>Restore</span><input type="file" id="tools-import" accept="application/json" style="display:none"></label>' +
+      (inApp ? '<button id="btn-smscheck" style="' + b + 'background:#2f6b4f;color:#fbf7ec"><span>SMS check</span></button>' : "") +
+      (upd ? '<button id="btn-updcheck" style="' + b + 'background:#2a5a8c;color:#fff"><span>Check for update (Build ' + esc(String(window.APP_BUILD || "")) + ")</span></button>" : "") +
+      '<button id="tools-close" style="' + b + 'background:transparent;color:#25344f;border:1px solid rgba(37,52,79,.3)">Close</button>',
+  );
+  el.id = "rk-tools";
+  el.querySelector("#tools-close").onclick = () => el.remove();
+  el.querySelector("#tools-backup").onclick = () => {
+    el.remove();
+    exportBackup();
+  };
+  el.querySelector("#tools-import").addEventListener("change", (e) => {
+    const file = e.target.files && e.target.files[0];
+    el.remove();
+    if (file) importBackupFile(file);
+  });
+  el.addEventListener("click", (e) => {
+    if (e.target === el) el.remove();
+  });
+}
 document.addEventListener("click", (ev) => {
-  const t = ev.target && ev.target.closest ? ev.target.closest("#btn-smscheck, #btn-updcheck") : null;
+  const x = ev.target && ev.target.closest ? ev.target.closest("[data-list-filter]") : null;
+  if (x) {
+    state.listFilter = x.getAttribute("data-list-filter");
+    render();
+    return;
+  }
+  const t = ev.target && ev.target.closest ? ev.target.closest("#btn-smscheck, #btn-updcheck, #btn-tools, [data-open-tools]") : null;
   if (!t) return;
+  if (t.id === "btn-tools" || t.hasAttribute("data-open-tools")) return showToolsSheet();
+  const sheet = document.getElementById("rk-tools");
+  if (sheet) sheet.remove();
   if (t.id === "btn-smscheck") showSmsCheck();
   else if (window.rkCheckUpdate) window.rkCheckUpdate(true);
 });

@@ -4186,7 +4186,7 @@ function renderCustomerDetail() {
     },
     { total: 0, paid: 0, due: 0 },
   );
-  return `\n  <div class="px-5 ml-2">\n    <div class="flex items-start justify-between mb-3">\n      <div class="flex items-start gap-3">\n        ${t.photo ? `<img src="${t.photo}" data-view-photo="1" class="w-12 h-12 rounded-full object-cover border border-[#25344f]/20 flex-shrink-0 active:opacity-70">` : ""}\n        <div class="text-xs text-[#8b7355] space-y-0.5">\n          ${t.phone ? `<p>${iconSpan("phone", 12)} ${esc(t.phone)}</p>` : ""}\n          ${t.address ? `<p>${iconSpan("mapPin", 12)} ${esc(t.address)}</p>` : ""}\n          ${t.note ? `<p>${iconSpan("edit", 12)} ${esc(t.note)}</p>` : ""}\n        </div>\n      </div>\n      <button id="btn-edit-customer" class="text-[11px] text-[#25344f] font-medium whitespace-nowrap">${iconSpan("edit", 13)} Edit details</button>\n    </div>\n    ${t.phone ? `\n    <div class="flex gap-2 mb-3">\n      <a href="tel:${esc(t.phone)}" class="flex-1 py-2.5 rounded-lg border border-[#25344f]/30 text-[#25344f] text-sm font-medium text-center flex items-center justify-center gap-1.5">${iconSpan("phone", 15)} Call</a>\n      <button id="btn-whatsapp-customer" class="flex-1 py-2.5 rounded-lg bg-[#2f6b4f] text-[#f3ecd9] text-sm font-medium flex items-center justify-center gap-1.5">${iconSpan("message", 15)} WhatsApp</button>\n    </div>` : ""}\n    ${e.due > 0 ? `\n    <button id="btn-show-qr" class="w-full py-2.5 rounded-lg border-2 border-[#25344f]/30 text-[#25344f] text-sm font-medium mb-4 flex items-center justify-center gap-1.5">${iconSpan("qrCode", 14)} Show Payment QR (₹${e.due.toLocaleString("en-IN")})</button>` : ""}\n    <div class="border-2 border-[#25344f]/20 rounded-lg p-4 mb-4 bg-[#fbf7ec]/60">\n      <div class="grid grid-cols-3 gap-1 text-center">\n        <div class="overflow-hidden"><p class="mono text-base font-bold text-[#25344f] tracking-tight whitespace-nowrap">₹${e.total.toLocaleString("en-IN")}</p><p class="text-[11px] text-[#8b7355] mt-1">Total billed</p></div>\n        <div class="overflow-hidden"><p class="mono text-base font-bold text-[#2f6b4f] tracking-tight whitespace-nowrap">₹${e.paid.toLocaleString("en-IN")}</p><p class="text-[11px] text-[#8b7355] mt-1">Paid</p></div>\n        <div class="overflow-hidden"><p class="mono text-base font-bold tracking-tight whitespace-nowrap ${e.due > 0 ? "text-[#b23a3a]" : "text-[#2f6b4f]"}">₹${Math.abs(e.due).toLocaleString("en-IN")}</p><p class="text-[11px] text-[#8b7355] mt-1">${e.due >= 0 ? "Due" : "Advance"}</p></div>\n      </div>\n      ${e.due > 0 ? '\n      <div class="flex gap-2 mt-3.5 pt-3.5 border-t border-dashed border-[#25344f]/20">\n        <input id="cust-pay-amt" placeholder="Amount received ₹" inputmode="decimal" class="flex-1 bg-[#fbf7ec] border border-[#25344f]/20 rounded-lg px-3 py-2.5 text-sm outline-none text-[#25344f]">\n        <button id="btn-add-payment-customer" class="px-4 py-2.5 rounded-lg bg-[#2f6b4f] text-[#f3ecd9] text-sm font-semibold whitespace-nowrap">+ Add Payment</button>\n      </div>' : ""}\n    </div>\n    <div class="flex gap-2 mb-4">\n      <button id="btn-add-txn" class="flex-1 py-3 rounded-lg bg-[#b23a3a] text-[#fbf7ec] font-semibold text-sm">+ New rental entry</button>\n      ${state.txns.length > 0 ? `<button id="btn-share-khata" class="px-4 py-3 rounded-lg border border-[#25344f]/30 text-[#25344f] font-medium text-sm">${iconSpan("receipt", 14)} Share Bill</button>` : ""}\n    </div>\n    ${0 === state.txns.length ? '<p class="text-center text-[#8b7355] text-sm mt-8 ink">Panna khaali hai — no entries yet.</p>' : ""}\n    <div>\n      ${(() => {
+  return `\n  <div class="px-5 ml-2">\n    <div class="flex items-start justify-between mb-3">\n      <div class="flex items-start gap-3">\n        ${t.photo ? `<img src="${t.photo}" data-view-photo="1" class="w-12 h-12 rounded-full object-cover border border-[#25344f]/20 flex-shrink-0 active:opacity-70">` : ""}\n        <div class="text-xs text-[#8b7355] space-y-0.5">\n          ${t.phone ? `<p>${iconSpan("phone", 12)} ${esc(t.phone)}</p>` : ""}\n          ${t.address ? `<p>${iconSpan("mapPin", 12)} ${esc(t.address)}</p>` : ""}\n          ${t.note ? `<p>${iconSpan("edit", 12)} ${esc(t.note)}</p>` : ""}\n        </div>\n      </div>\n      <button id="btn-edit-customer" class="text-[11px] text-[#25344f] font-medium whitespace-nowrap">${iconSpan("edit", 13)} Edit details</button>\n    </div>\n    ${t.phone ? `\n    <div class="flex gap-2 mb-3">\n      <a href="tel:${esc(t.phone)}" class="flex-1 py-2.5 rounded-lg border border-[#25344f]/30 text-[#25344f] text-sm font-medium text-center flex items-center justify-center gap-1.5">${iconSpan("phone", 15)} Call</a>\n      <button id="btn-whatsapp-customer" class="flex-1 py-2.5 rounded-lg bg-[#2f6b4f] text-[#f3ecd9] text-sm font-medium flex items-center justify-center gap-1.5">${iconSpan("message", 15)} WhatsApp</button>\n    </div>` : ""}\n    ${e.due > 0 ? `\n    <button id="btn-show-qr" class="w-full py-2.5 rounded-lg border-2 border-[#25344f]/30 text-[#25344f] text-sm font-medium mb-4 flex items-center justify-center gap-1.5">${iconSpan("qrCode", 14)} Show Payment QR (₹${e.due.toLocaleString("en-IN")})</button>` : ""}\n    <div class="border-2 border-[#25344f]/20 rounded-lg p-4 mb-4 bg-[#fbf7ec]/60">\n      <div class="grid grid-cols-3 gap-1 text-center">\n        <div class="overflow-hidden"><p class="mono text-base font-bold text-[#25344f] tracking-tight whitespace-nowrap">₹${e.total.toLocaleString("en-IN")}</p><p class="text-[11px] text-[#8b7355] mt-1">Total billed</p></div>\n        <button id="btn-paid-history" type="button" class="overflow-hidden" style="background:transparent;border:0;padding:0"><p class="mono text-base font-bold text-[#2f6b4f] tracking-tight whitespace-nowrap">₹${e.paid.toLocaleString("en-IN")}</p><p class="text-[11px] text-[#2f6b4f] mt-1" style="font-weight:600">Paid ›</p></button>\n        <div class="overflow-hidden"><p class="mono text-base font-bold tracking-tight whitespace-nowrap ${e.due > 0 ? "text-[#b23a3a]" : "text-[#2f6b4f]"}">₹${Math.abs(e.due).toLocaleString("en-IN")}</p><p class="text-[11px] text-[#8b7355] mt-1">${e.due >= 0 ? "Due" : "Advance"}</p></div>\n      </div>\n      ${e.due > 0 ? '\n      <div class="flex gap-2 mt-3.5 pt-3.5 border-t border-dashed border-[#25344f]/20">\n        <input id="cust-pay-amt" placeholder="Amount received ₹" inputmode="decimal" class="flex-1 bg-[#fbf7ec] border border-[#25344f]/20 rounded-lg px-3 py-2.5 text-sm outline-none text-[#25344f]">\n        <button id="btn-add-payment-customer" class="px-4 py-2.5 rounded-lg bg-[#2f6b4f] text-[#f3ecd9] text-sm font-semibold whitespace-nowrap">+ Add Payment</button>\n      </div>' : ""}\n    </div>\n    <div class="flex gap-2 mb-4">\n      <button id="btn-add-txn" class="flex-1 py-3 rounded-lg bg-[#b23a3a] text-[#fbf7ec] font-semibold text-sm">+ New rental entry</button>\n      ${state.txns.length > 0 ? `<button id="btn-share-khata" class="px-4 py-3 rounded-lg border border-[#25344f]/30 text-[#25344f] font-medium text-sm">${iconSpan("receipt", 14)} Share Bill</button>` : ""}\n    </div>\n    ${0 === state.txns.length ? '<p class="text-center text-[#8b7355] text-sm mt-8 ink">No entries yet.</p>' : ""}\n    <div>\n      ${(() => {
     const t = computeVirtualDueMap(state.txns);
     return [...state.txns]
       .reverse()
@@ -5418,6 +5418,88 @@ function khataSheet(html) {
   document.body.appendChild(el);
   return el;
 }
+function payModeLabel(m) {
+  const t = String(m || "").trim();
+  if (!t) return "Not noted";
+  if (/cash|नकद/i.test(t)) return "Cash";
+  if (/upi/i.test(t)) return "UPI";
+  if (/bank|बैंक/i.test(t)) return "Bank";
+  return t.replace(/^.*\((.*)\)\s*$/, "$1");
+}
+function collectPaymentHistory(txns) {
+  const rows = [];
+  const byKey = {};
+  (txns || []).forEach((x) => {
+    if (Number(x.advance) > 0) rows.push({ kind: "Advance", date: x.dateGiven, amount: Number(x.advance), note: "Paid with the rental entry" });
+    (x.payments || []).forEach((p) => {
+      const amt = Number(p.amount);
+      if (!(amt > 0)) return;
+      const mode = payModeLabel(p.method);
+      /* one payment can be split over several entries - show it once */
+      const key = mode + "|" + (p.sid || p.ref || "") + "|" + String(p.date || "").slice(0, 19);
+      if (byKey[key]) {
+        byKey[key].amount += amt;
+        return;
+      }
+      byKey[key] = { kind: mode, date: p.date, amount: amt, note: p.auto ? "Detected automatically" : "" };
+      rows.push(byKey[key]);
+    });
+    if (Number(x.waived) > 0) {
+      const wh = (x.history || []).filter((h) => /waived/.test(h.note || "")).pop();
+      rows.push({ kind: "Discount", date: (wh && wh.ts) || x.dateGiven, amount: Number(x.waived), note: "Amount waived off" });
+    }
+  });
+  rows.forEach((r) => (r.amount = Math.round(r.amount * 100) / 100));
+  return rows.sort((a, b) => new Date(b.date) - new Date(a.date));
+}
+const PAY_MODE_STYLE = {
+  Cash: ["rgba(194,112,61,.16)", "#9a5a2c"],
+  UPI: ["rgba(42,90,140,.14)", "#2a5a8c"],
+  Bank: ["rgba(37,52,79,.12)", "#25344f"],
+  Advance: ["rgba(47,107,79,.16)", "#2f6b4f"],
+  Discount: ["rgba(139,115,85,.2)", "#6b5535"],
+};
+function showPaidHistory() {
+  const c = getActiveCustomer();
+  const rows = collectPaymentHistory(state.txns);
+  const total = rows.reduce((a, r) => a + r.amount, 0);
+  const inr = (n) => "₹" + (Math.round(n * 100) / 100).toLocaleString("en-IN");
+  const pill = (k) => {
+    const st = PAY_MODE_STYLE[k] || ["rgba(37,52,79,.08)", "#8b7355"];
+    return '<span style="display:inline-block;border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700;background:' + st[0] + ";color:" + st[1] + '">' + esc(k) + "</span>";
+  };
+  const modes = {};
+  rows.forEach((r) => (modes[r.kind] = (modes[r.kind] || 0) + r.amount));
+  const order = ["Cash", "UPI", "Bank", "Not noted", "Advance", "Discount"];
+  const summary = Object.keys(modes)
+    .sort((a, b) => (order.indexOf(a) < 0 ? 9 : order.indexOf(a)) - (order.indexOf(b) < 0 ? 9 : order.indexOf(b)))
+    .map((k) => '<span style="display:inline-flex;align-items:center;gap:6px;margin:0 8px 6px 0">' + pill(k) + '<b class="mono" style="font-size:13px">' + inr(modes[k]) + "</b></span>")
+    .join("");
+  const list = rows.length
+    ? rows
+        .map(
+          (r) =>
+            '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px dashed rgba(37,52,79,.22)">' +
+            '<div style="min-width:0"><div style="font-size:13px;font-weight:600">' + esc(fmtDateTime(r.date)) + "</div>" +
+            '<div style="margin-top:5px">' + pill(r.kind) + (r.note ? ' <span style="font-size:11px;color:#8b7355;margin-left:4px">' + esc(r.note) + "</span>" : "") + "</div></div>" +
+            '<div class="mono" style="font-size:16px;font-weight:700;color:#2f6b4f;white-space:nowrap">' + inr(r.amount) + "</div></div>",
+        )
+        .join("")
+    : '<p style="text-align:center;color:#8b7355;font-size:14px;margin:26px 0">No payments yet.</p>';
+  const el = khataSheet(
+    '<div style="font-weight:700;font-size:18px">Payments received</div>' +
+      '<div style="font-size:12px;color:#8b7355;margin:2px 0 10px">' + esc((c && c.name) || "") + " · " + rows.length + " payment" + (rows.length === 1 ? "" : "s") + "</div>" +
+      (summary ? '<div style="margin-bottom:4px">' + summary + "</div>" : "") +
+      list +
+      (rows.length ? '<div style="display:flex;justify-content:space-between;align-items:baseline;padding:12px 0 4px"><span style="font-weight:700">Total paid</span><span class="mono" style="font-size:17px;font-weight:700;color:#2f6b4f">' + inr(total) + "</span></div>" : "") +
+      '<button id="paid-close" style="width:100%;padding:13px;border-radius:12px;font-weight:700;font-size:14px;margin-top:10px;background:transparent;color:#25344f;border:1px solid rgba(37,52,79,.3)">Close</button>',
+  );
+  el.id = "rk-paid";
+  el.querySelector("#paid-close").onclick = () => el.remove();
+  el.addEventListener("click", (e) => {
+    if (e.target === el) el.remove();
+  });
+}
 function methodEn(m) {
   return String(m || "").replace(/^.*\((.*)\)\s*$/, "$1");
 }
@@ -5931,6 +6013,7 @@ function showToolsSheet() {
   });
 }
 document.addEventListener("click", (ev) => {
+  if (ev.target && ev.target.closest && ev.target.closest("#btn-paid-history")) return showPaidHistory();
   const x = ev.target && ev.target.closest ? ev.target.closest("[data-list-filter]") : null;
   if (x) {
     state.listFilter = x.getAttribute("data-list-filter");
